@@ -58,7 +58,7 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Inject AdMob App ID into AndroidManifest.xml
+      - name: Inject Official AdMob Test App ID into AndroidManifest.xml
         run: |
           node -e "
           const fs = require('fs');
