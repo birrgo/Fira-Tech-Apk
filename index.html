@@ -33,6 +33,16 @@
         .mock-interstitial-content { background: #fff; width: 90%; max-width: 380px; border-radius: 16px; padding: 25px; text-align: center; position: relative; }
         .mock-interstitial-close { position: absolute; top: 15px; right: 15px; background: none; border: none; font-weight: 600; cursor: pointer; color: #555; }
     </style>
+
+    <!-- NATIVE HARDWARE BRIDGE: Imports the Javascript Wrappers required by Capacitor for plain HTML apps -->
+    <script type="importmap">
+        {
+            "imports": {
+                "@capacitor/core": "https://cdn.jsdelivr.net/npm/@capacitor/core@6/dist/index.js",
+                "capacitor-admob-nextgen": "https://cdn.jsdelivr.net/npm/capacitor-admob-nextgen/dist/esm/index.js"
+            }
+        }
+    </script>
 </head>
 <body style="padding-bottom: 60px;">
 
@@ -153,9 +163,6 @@
         </nav>
     </div>
 
-    <!-- MAGIC BRIDGE: Connects raw HTML to Android Hardware Plugins -->
-    <script src="capacitor.js"></script>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -185,11 +192,21 @@
         let currentAdConfig = null;
         let isAdMobInitialized = false;
         let activeFeedAdIds = []; 
+        let AdMobNextGenPlugin = null; // Global reference for Native Wrapper
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdminMode = urlParams.get('admin') === 'true';
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // STEP 1: Dynamically import the AdMob plugin through the Import Map
+            // This is strictly required for Native Android execution without a bundler.
+            try {
+                const admobModule = await import('capacitor-admob-nextgen');
+                AdMobNextGenPlugin = admobModule.AdMobNextGen || admobModule.AdMob;
+            } catch (e) {
+                console.log("Web mode detected. Native JS wrapper skipped.");
+            }
+
             streamLiveAdminUpdatesLog();
             listenToAdManager(); 
             bindVisualInterfaceControls();
@@ -206,9 +223,10 @@
             initiateLiveInterfaceClocks();
         });
 
+        // STEP 2: Use the imported wrapper directly when checking for native capabilities
         function getAdMobPlugin() {
-            if (!window.Capacitor || !window.Capacitor.Plugins) return null;
-            return window.Capacitor.Plugins.AdMobNextGen || window.Capacitor.Plugins.AdMob || null;
+            if (!window.Capacitor || !window.Capacitor.isNative) return null;
+            return AdMobNextGenPlugin || null;
         }
 
         function listenToAdManager() {
