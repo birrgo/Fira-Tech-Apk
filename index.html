@@ -33,6 +33,9 @@
         .mock-interstitial-content { background: #fff; width: 90%; max-width: 380px; border-radius: 16px; padding: 25px; text-align: center; position: relative; }
         .mock-interstitial-close { position: absolute; top: 15px; right: 15px; background: none; border: none; font-weight: 600; cursor: pointer; color: #555; }
     </style>
+
+    <!-- CAPACITOR NATIVE BRIDGE: Must be in HEAD to load instantly on Android -->
+    <script src="capacitor.js"></script>
 </head>
 <body style="padding-bottom: 60px;">
 
@@ -153,9 +156,6 @@
         </nav>
     </div>
 
-    <!-- Capacitor Auto-Injected Bridge Marker -->
-    <script src="capacitor.js"></script>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -189,16 +189,15 @@
         const urlParams = new URLSearchParams(window.location.search);
         const isAdminMode = urlParams.get('admin') === 'true';
 
-        // --- ADMOB NATIVE DETECTION HELPERS ---
-        function isWebEditor() {
-            return typeof window.Capacitor === 'undefined' || !window.Capacitor.isNative;
+        // --- STRICT NATIVE DETECTION ---
+        function isNativeApp() {
+            // Returns true ONLY if running inside the compiled Android APK
+            return window.Capacitor !== undefined && window.Capacitor.isNative === true;
         }
 
         function getAdMobPlugin() {
-            if (typeof window.Capacitor !== 'undefined' && window.Capacitor.Plugins) {
-                return window.Capacitor.Plugins.AdMobNextGen || window.Capacitor.Plugins.AdMob || null;
-            }
-            return null;
+            if (!isNativeApp()) return null;
+            return window.Capacitor.Plugins.AdMobNextGen || window.Capacitor.Plugins.AdMob || null;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -239,7 +238,8 @@
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
             if (adStatusStr !== "TRUE" && adStatusStr !== "ON") return;
 
-            if (isWebEditor()) {
+            // --- WEB EDITOR MOCKUPS ---
+            if (!isNativeApp()) {
                 if (isPlacementEnabled('bannerAdHomePage') && currentAdConfig?.adMobBannerUnitId && !document.getElementById('mock-banner-container')) {
                     const bannerDiv = document.createElement('div');
                     bannerDiv.id = 'mock-banner-container';
@@ -256,9 +256,10 @@
                     `;
                     document.body.appendChild(bannerDiv);
                 }
-                return; // Stop. Do not attempt native calls.
+                return; // Stop execution to prevent errors in web editor
             }
 
+            // --- REAL ANDROID NATIVE ADS ---
             const AdPlugin = getAdMobPlugin();
             if (!AdPlugin) return;
 
@@ -316,7 +317,8 @@
             const isInterstitialEnabled = isPlacementEnabled('interstitialAdPostDetails');
             const isNativePostEnabled = isPlacementEnabled('nativeAdPostDetails');
 
-            if (isWebEditor()) {
+            // --- WEB EDITOR MOCKUPS ---
+            if (!isNativeApp()) {
                 if (isInterstitialEnabled && currentAdConfig?.adMobInterstitialUnitId) {
                     const overlay = document.createElement('div');
                     overlay.className = 'mock-interstitial';
@@ -346,9 +348,10 @@
                         </div>
                     `;
                 }
-                return;
+                return; // Stop execution to prevent errors in web editor
             }
 
+            // --- REAL ANDROID NATIVE ADS ---
             const AdPlugin = getAdMobPlugin();
             if (!AdPlugin) return;
 
@@ -739,8 +742,8 @@
 
                     const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
                     if (adStatusStr === "TRUE" || adStatusStr === "ON") {
-                        if (isWebEditor()) {
-                            // --- HTML EDITOR MOCKUP ---
+                        if (!isNativeApp()) {
+                            // --- WEB EDITOR MOCKUP ---
                             adDiv.innerHTML = `
                                 <div class="mock-ad-container" style="width:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:15px; background:#f9f9f9; border:1px solid #eee; box-sizing:border-box;">
                                     <span class="mock-ad-badge" style="position:static; display:inline-block; margin-bottom:5px;">AD</span>
@@ -749,6 +752,7 @@
                                 </div>
                             `;
                         } else if (AdPlugin) {
+                            // --- REAL ANDROID NATIVE ADS ---
                             adDiv.style.minHeight = '300px'; 
                             activeFeedAdIds.push(adPlaceholderId);
                             setTimeout(() => {
