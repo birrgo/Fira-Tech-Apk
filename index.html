@@ -220,6 +220,12 @@
             });
         }
 
+        // Helper function to check if a specific placement is enabled in the database
+        function isPlacementEnabled(placementKey) {
+            return currentAdConfig?.placements && 
+                   (currentAdConfig.placements[placementKey] === true || String(currentAdConfig.placements[placementKey]).toLowerCase() === "true");
+        }
+
         async function applyGlobalAdMobConfigurations() {
             const AdPlugin = getAdMobPlugin();
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
@@ -229,7 +235,7 @@
 
             // --- HTML EDITOR MOCKUP FOR BOTTOM BANNER ---
             if (!AdPlugin) {
-                if (currentAdConfig?.adMobBannerUnitId && !document.getElementById('mock-banner-container')) {
+                if (isPlacementEnabled('bannerAdHomePage') && currentAdConfig?.adMobBannerUnitId && !document.getElementById('mock-banner-container')) {
                     const bannerDiv = document.createElement('div');
                     bannerDiv.id = 'mock-banner-container';
                     bannerDiv.style.position = 'fixed';
@@ -265,7 +271,8 @@
                 }
             }
 
-            if (currentAdConfig.adMobInterstitialUnitId) {
+            // Prepare Interstitial if placement is active
+            if (isPlacementEnabled('interstitialAdPostDetails') && currentAdConfig.adMobInterstitialUnitId) {
                 try {
                     if (AdPlugin.prepareInterstitial) {
                         await AdPlugin.prepareInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId });
@@ -275,7 +282,8 @@
                 } catch (e) { console.log("Interstitial Prepare Error:", e); }
             }
 
-            if (currentAdConfig.placements?.appOpenAdStart && currentAdConfig.adMobAppOpenUnitId) {
+            // App Open Ad Start
+            if (isPlacementEnabled('appOpenAdStart') && currentAdConfig.adMobAppOpenUnitId) {
                 try {
                     if (AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: currentAdConfig.adMobAppOpenUnitId });
                     else if (AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: currentAdConfig.adMobAppOpenUnitId });
@@ -284,7 +292,8 @@
                 } catch (e) { console.error("App Open error:", e); }
             }
 
-            if (currentAdConfig.placements?.bannerAdHomePage && currentAdConfig.adMobBannerUnitId) {
+            // Banner Ad Home Page
+            if (isPlacementEnabled('bannerAdHomePage') && currentAdConfig.adMobBannerUnitId) {
                 try {
                     await AdPlugin.showBanner({
                         adId: currentAdConfig.adMobBannerUnitId,
@@ -301,8 +310,11 @@
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
             if (adStatusStr !== "TRUE" && adStatusStr !== "ON") return;
 
+            const isInterstitialEnabled = isPlacementEnabled('interstitialAdPostDetails');
+            const isNativePostEnabled = isPlacementEnabled('nativeAdPostDetails');
+
             if (!AdPlugin) {
-                if (currentAdConfig?.adMobInterstitialUnitId) {
+                if (isInterstitialEnabled && currentAdConfig?.adMobInterstitialUnitId) {
                     const overlay = document.createElement('div');
                     overlay.className = 'mock-interstitial';
                     overlay.innerHTML = `
@@ -319,7 +331,7 @@
                 }
                 
                 const articleAdPlaceholder = document.getElementById('article-native-ad');
-                if (articleAdPlaceholder && currentAdConfig?.adMobNativeUnitId) {
+                if (isNativePostEnabled && articleAdPlaceholder && currentAdConfig?.adMobNativeUnitId) {
                     articleAdPlaceholder.innerHTML = `
                         <div class="mock-ad-container" style="width:100%;">
                             <span class="mock-ad-badge">ADMOB NATIVE</span>
@@ -334,7 +346,7 @@
                 return;
             }
 
-            if (currentAdConfig.adMobInterstitialUnitId) {
+            if (isInterstitialEnabled && currentAdConfig.adMobInterstitialUnitId) {
                 try {
                     await AdPlugin.showInterstitial();
                     if (AdPlugin.prepareInterstitial) {
@@ -345,7 +357,7 @@
                 } catch (e) { console.error("Interstitial ad error:", e); }
             }
 
-            if (currentAdConfig.placements?.nativeAdPostDetails && currentAdConfig.adMobNativeUnitId) {
+            if (isNativePostEnabled && currentAdConfig.adMobNativeUnitId) {
                 setTimeout(async () => {
                     try {
                         if (AdPlugin.showNativeAd) {
@@ -709,7 +721,10 @@
                 const isEverySecondItem = (index + 1) % 2 === 0;
                 const isVeryLastItem = (index === filtered.length - 1);
                 
-                if ((isEverySecondItem || isVeryLastItem) && currentAdConfig?.adMobNativeUnitId) {
+                // --- CONNECTED PLACEMENT TOGGLE FOR FEED NATIVE AD ---
+                const isFeedNativeEnabled = isPlacementEnabled('nativeAdPostList');
+                
+                if (isFeedNativeEnabled && (isEverySecondItem || isVeryLastItem) && currentAdConfig?.adMobNativeUnitId) {
                     const adPlaceholderId = `feed-native-ad-${index}`;
                     const adDiv = document.createElement('div');
                     adDiv.id = adPlaceholderId;
