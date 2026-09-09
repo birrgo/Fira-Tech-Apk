@@ -22,9 +22,19 @@
             box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
         }
         .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
+
+        /* --- ADMOB WEB EDITOR MOCK PREVIEWS --- */
+        .mock-ad-container { background: #ffffff; border: 1px solid #eaeaea; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 15px; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .mock-ad-badge { position: absolute; top: 12px; left: 12px; background: #ffc107; color: #000; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px; }
+        .mock-ad-title { font-weight: 700; margin: 15px 0 5px; font-size: 15px; color: #111; }
+        .mock-ad-id { font-size: 10px; color: #888; margin-bottom: 15px; word-break: break-all; }
+        .mock-ad-btn { background: #2563eb; color: #fff; border: none; padding: 12px 16px; border-radius: 8px; font-weight: 700; width: 100%; cursor: pointer; }
+        .mock-interstitial { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(30,30,30,0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; }
+        .mock-interstitial-content { background: #fff; width: 90%; max-width: 380px; border-radius: 16px; padding: 25px; text-align: center; position: relative; }
+        .mock-interstitial-close { position: absolute; top: 15px; right: 15px; background: none; border: none; font-weight: 600; cursor: pointer; color: #555; }
     </style>
 </head>
-<body>
+<body style="padding-bottom: 60px;">
 
     <div class="app-view">
         <svg class="bg-wave bg-wave-top" viewBox="0 0 375 200" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -193,7 +203,10 @@
             initiateLiveInterfaceClocks();
         });
 
-        // ---------------- ADMOB LOGIC START ----------------
+        function getAdMobPlugin() {
+            if (!window.Capacitor || !window.Capacitor.Plugins) return null;
+            return window.Capacitor.Plugins.AdMobNextGen || window.Capacitor.Plugins.AdMob || null;
+        }
 
         function listenToAdManager() {
             const adManagerRef = ref(db, `${APP_NODE_NAME}/adManager`);
@@ -208,89 +221,150 @@
         }
 
         async function applyGlobalAdMobConfigurations() {
-            // FIX: Evaluate database status accounting for "ON" string
+            const AdPlugin = getAdMobPlugin();
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
             const isAdStatusActive = adStatusStr === "TRUE" || adStatusStr === "ON";
             
-            if (!isAdStatusActive || !window.Capacitor || !window.Capacitor.Plugins.AdMobNextGen) return;
-            
-            const { AdMobNextGen } = window.Capacitor.Plugins;
+            if (!isAdStatusActive) return;
+
+            // --- HTML EDITOR MOCKUP FOR BOTTOM BANNER ---
+            if (!AdPlugin) {
+                if (currentAdConfig?.adMobBannerUnitId && !document.getElementById('mock-banner-container')) {
+                    const bannerDiv = document.createElement('div');
+                    bannerDiv.id = 'mock-banner-container';
+                    bannerDiv.style.position = 'fixed';
+                    bannerDiv.style.bottom = '65px'; 
+                    bannerDiv.style.left = '0';
+                    bannerDiv.style.width = '100%';
+                    bannerDiv.style.zIndex = '9998';
+                    bannerDiv.innerHTML = `
+                        <div style="background:#fff; border-top:1px solid #ddd; padding:10px; text-align:center; display:flex; align-items:center; justify-content:center; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
+                            <span style="background:#ffc107; color:#000; font-size:11px; font-weight:bold; padding:3px 6px; border-radius:4px; margin-right:10px;">AD</span>
+                            <span style="font-size:13px; color:#555; font-weight:bold;">Banner Ad Preview (ID: ${currentAdConfig.adMobBannerUnitId})</span>
+                        </div>
+                    `;
+                    document.body.appendChild(bannerDiv);
+                }
+                return;
+            }
+            // --- END MOCKUP ---
 
             if (!isAdMobInitialized) {
-                // FIX: Isolate consent request so it doesn't crash initialization
                 try {
-                    await AdMobNextGen.requestConsentInfo();
-                } catch (e) {
-                    console.log("Consent check skipped or failed (test mode):", e);
-                }
+                    if (AdPlugin.requestConsentInfo) {
+                        await AdPlugin.requestConsentInfo();
+                    }
+                } catch (e) { console.log("Consent skipped:", e); }
 
                 try {
-                    await AdMobNextGen.initialize();
+                    await AdPlugin.initialize();
                     isAdMobInitialized = true;
                 } catch (e) {
-                    console.error("AdMob Initialization Failed:", e);
+                    console.error("AdMob Init Failed:", e);
                     return;
                 }
             }
 
             if (currentAdConfig.adMobInterstitialUnitId) {
-                AdMobNextGen.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e => console.log("Interstitial Prepare Error:", e));
+                try {
+                    if (AdPlugin.prepareInterstitial) {
+                        await AdPlugin.prepareInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId });
+                    } else if (AdPlugin.loadInterstitial) {
+                        await AdPlugin.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId });
+                    }
+                } catch (e) { console.log("Interstitial Prepare Error:", e); }
             }
 
             if (currentAdConfig.placements?.appOpenAdStart && currentAdConfig.adMobAppOpenUnitId) {
                 try {
-                    await AdMobNextGen.loadAppOpen({ adId: currentAdConfig.adMobAppOpenUnitId });
-                    await AdMobNextGen.showAppOpenAd();
-                } catch (e) { console.error("App Open Ad error:", e); }
+                    if (AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: currentAdConfig.adMobAppOpenUnitId });
+                    else if (AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: currentAdConfig.adMobAppOpenUnitId });
+                    
+                    if (AdPlugin.showAppOpenAd) await AdPlugin.showAppOpenAd();
+                } catch (e) { console.error("App Open error:", e); }
             }
 
             if (currentAdConfig.placements?.bannerAdHomePage && currentAdConfig.adMobBannerUnitId) {
                 try {
-                    await AdMobNextGen.showBanner({
+                    await AdPlugin.showBanner({
                         adId: currentAdConfig.adMobBannerUnitId,
                         adSize: 'BANNER',
                         position: 'BOTTOM_CENTER',
                         margin: 65 
                     });
-                } catch (e) { console.error("Home Banner error:", e); }
+                } catch (e) { console.error("Banner error:", e); }
             }
         }
 
         async function triggerArticleAds() {
+            const AdPlugin = getAdMobPlugin();
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
-            const isAdStatusActive = adStatusStr === "TRUE" || adStatusStr === "ON";
-            
-            if (!isAdStatusActive || !window.Capacitor || !window.Capacitor.Plugins.AdMobNextGen) return;
-            
-            const { AdMobNextGen } = window.Capacitor.Plugins;
+            if (adStatusStr !== "TRUE" && adStatusStr !== "ON") return;
+
+            if (!AdPlugin) {
+                if (currentAdConfig?.adMobInterstitialUnitId) {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'mock-interstitial';
+                    overlay.innerHTML = `
+                        <div class="mock-interstitial-content">
+                            <button class="mock-interstitial-close" onclick="this.parentElement.parentElement.remove()">Skip Ad X</button>
+                            <span class="mock-ad-badge" style="left:25px;">ADMOB INTERSTITIAL</span>
+                            <div style="font-size:45px; margin:40px 0 10px;">📢</div>
+                            <div class="mock-ad-title">Full Screen Interstitial Ad</div>
+                            <div class="mock-ad-id">Unit ID: ${currentAdConfig.adMobInterstitialUnitId}</div>
+                            <button class="mock-ad-btn" style="background:#081B38; margin-top:10px;" onclick="this.parentElement.parentElement.remove()">CONTINUE</button>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+                }
+                
+                const articleAdPlaceholder = document.getElementById('article-native-ad');
+                if (articleAdPlaceholder && currentAdConfig?.adMobNativeUnitId) {
+                    articleAdPlaceholder.innerHTML = `
+                        <div class="mock-ad-container" style="width:100%;">
+                            <span class="mock-ad-badge">ADMOB NATIVE</span>
+                            <span style="position:absolute; top:12px; right:12px; font-size:10px; color:#888;">Sponsored Content</span>
+                            <div style="font-size:32px; margin-top:20px;">💡</div>
+                            <div class="mock-ad-title">Promoted Opportunities</div>
+                            <div class="mock-ad-id">AdMob Native Placement Preview.<br>ID: ${currentAdConfig.adMobNativeUnitId}</div>
+                            <button class="mock-ad-btn">LEARN MORE</button>
+                        </div>
+                    `;
+                }
+                return;
+            }
 
             if (currentAdConfig.adMobInterstitialUnitId) {
                 try {
-                    await AdMobNextGen.showInterstitial();
-                    AdMobNextGen.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e => console.log(e));
+                    await AdPlugin.showInterstitial();
+                    if (AdPlugin.prepareInterstitial) {
+                        AdPlugin.prepareInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e=>console.log(e));
+                    } else if (AdPlugin.loadInterstitial) {
+                        AdPlugin.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e=>console.log(e));
+                    }
                 } catch (e) { console.error("Interstitial ad error:", e); }
             }
 
             if (currentAdConfig.placements?.nativeAdPostDetails && currentAdConfig.adMobNativeUnitId) {
-                try {
-                    if (AdMobNextGen.showNativeAd) {
-                        await AdMobNextGen.showNativeAd({ adId: currentAdConfig.adMobNativeUnitId, elementId: 'article-native-ad' });
-                    }
-                } catch (e) { console.error("Native Article ad error:", e); }
+                setTimeout(async () => {
+                    try {
+                        if (AdPlugin.showNativeAd) {
+                            await AdPlugin.showNativeAd({ adId: currentAdConfig.adMobNativeUnitId, elementId: 'article-native-ad' });
+                        }
+                    } catch (e) { console.error("Native Article error:", e); }
+                }, 300);
             }
         }
 
         async function removeArticleAds() {
-            if (!window.Capacitor || !window.Capacitor.Plugins.AdMobNextGen) return;
-            const { AdMobNextGen } = window.Capacitor.Plugins;
+            const AdPlugin = getAdMobPlugin();
+            if (!AdPlugin) return;
             try {
-                if (AdMobNextGen.hideNativeAd) {
-                    await AdMobNextGen.hideNativeAd({ elementId: 'article-native-ad' });
+                if (AdPlugin.hideNativeAd) {
+                    await AdPlugin.hideNativeAd({ elementId: 'article-native-ad' });
                 }
-            } catch (e) { console.error("Failed to remove native ads", e); }
+            } catch (e) { console.error("Remove native error:", e); }
         }
-
-        // ---------------- ADMOB LOGIC END ----------------
 
         function getYouTubeEmbedUrl(url) {
             if (!url) return null;
@@ -443,6 +517,11 @@
                 
                 const currentTitle = clonedPayload.title || clonedPayload.newsTitle || "Untitled";
                 clonedPayload.title = `${currentTitle} (Copy)`;
+
+                const currentCode = clonedPayload.newsCode || clonedPayload.code || "";
+                if (currentCode) {
+                    clonedPayload.newsCode = `${currentCode}_COPY`;
+                }
 
                 const nodeRef = ref(db, `${APP_NODE_NAME}/${targetNodePath}`);
                 const newRef = push(nodeRef);
@@ -598,11 +677,12 @@
 
         function renderFilteredBroadcasts() {
             const container = document.getElementById('broadcastsContainer');
+            const AdPlugin = getAdMobPlugin();
             if (!container) return;
             
-            if (window.Capacitor && window.Capacitor.Plugins.AdMobNextGen && window.Capacitor.Plugins.AdMobNextGen.hideNativeAd) {
+            if (AdPlugin && AdPlugin.hideNativeAd) {
                 activeFeedAdIds.forEach(adId => {
-                    window.Capacitor.Plugins.AdMobNextGen.hideNativeAd({ elementId: adId }).catch(e=>console.log(e));
+                    AdPlugin.hideNativeAd({ elementId: adId }).catch(e=>console.log(e));
                 });
             }
             activeFeedAdIds = []; 
@@ -626,28 +706,42 @@
                 card.innerHTML = buildSingleNewsCardHTML(item);
                 container.appendChild(card);
                 
-                if ((index + 1) % 2 === 0 && currentAdConfig?.placements?.nativeAdPostList && currentAdConfig?.adMobNativeUnitId) {
+                const isEverySecondItem = (index + 1) % 2 === 0;
+                const isVeryLastItem = (index === filtered.length - 1);
+                
+                if ((isEverySecondItem || isVeryLastItem) && currentAdConfig?.adMobNativeUnitId) {
                     const adPlaceholderId = `feed-native-ad-${index}`;
                     const adDiv = document.createElement('div');
                     adDiv.id = adPlaceholderId;
                     adDiv.style.width = '100%';
-                    adDiv.style.minHeight = '300px'; 
                     adDiv.style.marginBottom = '15px';
                     adDiv.style.background = 'transparent';
-                    container.appendChild(adDiv);
-                    
-                    activeFeedAdIds.push(adPlaceholderId);
 
-                    // FIX: Also check for "ON" string when rendering feed ads
-                    if (window.Capacitor && window.Capacitor.Plugins.AdMobNextGen) {
-                        const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
-                        if (adStatusStr === "TRUE" || adStatusStr === "ON") {
-                            window.Capacitor.Plugins.AdMobNextGen.showNativeAd({
-                                adId: currentAdConfig.adMobNativeUnitId,
-                                elementId: adPlaceholderId
-                            }).catch(e => console.log("Feed Native Ad Error:", e));
+                    const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
+                    if (adStatusStr === "TRUE" || adStatusStr === "ON") {
+                        if (AdPlugin) {
+                            adDiv.style.minHeight = '100px'; 
+                            activeFeedAdIds.push(adPlaceholderId);
+                            setTimeout(() => {
+                                if (AdPlugin.showNativeAd) {
+                                    AdPlugin.showNativeAd({
+                                        adId: currentAdConfig.adMobNativeUnitId,
+                                        elementId: adPlaceholderId
+                                    }).catch(e => console.log("Feed Native Ad Error:", e));
+                                }
+                            }, 300);
+                        } else {
+                            // --- HTML EDITOR MOCKUP ---
+                            adDiv.innerHTML = `
+                                <div class="mock-ad-container" style="width:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:15px; background:#f9f9f9; border:1px solid #eee; box-sizing:border-box;">
+                                    <span class="mock-ad-badge" style="position:static; display:inline-block; margin-bottom:5px;">AD</span>
+                                    <div style="color:#888; font-size:12px; font-weight:bold;">In-Feed Native Ad Preview</div>
+                                    <div style="color:#aaa; font-size:9px; margin-top:5px;">ID: ${currentAdConfig.adMobNativeUnitId}</div>
+                                </div>
+                            `;
                         }
                     }
+                    container.appendChild(adDiv);
                 }
             });
         }
