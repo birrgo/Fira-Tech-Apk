@@ -18,19 +18,29 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Capacitor, Splash Screen & AdMob NextGen
+      - name: Install Node Dependencies & Esbuild
         run: |
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/splash-screen capacitor-admob-nextgen
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/splash-screen capacitor-admob-nextgen esbuild
 
       - name: Enable NextGen Native Ads in package.json
         run: |
           node -e "const fs = require('fs'); let pkg = JSON.parse(fs.readFileSync('package.json')); pkg.admob = { enableNativeAds: true }; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
 
-      - name: Bundle Web Files
+      - name: Bundle Web Files & Compile Native Bridge
         run: |
           mkdir www
-          rsync -av --exclude='.git' --exclude='.github' --exclude='www' ./ www/
+          # Copy all web files except dev files
+          rsync -av --exclude='.git' --exclude='.github' --exclude='www' --exclude='node_modules' ./ www/
+          
+          # Create a Javascript Bridge to connect HTML to the Android App
+          echo "import { Capacitor } from '@capacitor/core';" > bridge.js
+          echo "import { AdMobNextGen } from 'capacitor-admob-nextgen';" >> bridge.js
+          echo "window.Capacitor = Capacitor;" >> bridge.js
+          echo "window.AdMobPlugin = AdMobNextGen;" >> bridge.js
+          
+          # Compile the bridge into the www folder
+          npx esbuild bridge.js --bundle --minify --outfile=www/native-bridge.js
 
       - name: Create Capacitor Config Safely
         run: |
