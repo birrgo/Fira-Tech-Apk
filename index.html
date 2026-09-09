@@ -33,16 +33,6 @@
         .mock-interstitial-content { background: #fff; width: 90%; max-width: 380px; border-radius: 16px; padding: 25px; text-align: center; position: relative; }
         .mock-interstitial-close { position: absolute; top: 15px; right: 15px; background: none; border: none; font-weight: 600; cursor: pointer; color: #555; }
     </style>
-
-    <!-- NATIVE HARDWARE BRIDGE: Imports the Javascript Wrappers required by Capacitor for plain HTML apps -->
-    <script type="importmap">
-        {
-            "imports": {
-                "@capacitor/core": "https://cdn.jsdelivr.net/npm/@capacitor/core@6/dist/index.js",
-                "capacitor-admob-nextgen": "https://cdn.jsdelivr.net/npm/capacitor-admob-nextgen/dist/esm/index.js"
-            }
-        }
-    </script>
 </head>
 <body style="padding-bottom: 60px;">
 
@@ -163,6 +153,9 @@
         </nav>
     </div>
 
+    <!-- Capacitor Auto-Injected Bridge Marker -->
+    <script src="capacitor.js"></script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -192,21 +185,23 @@
         let currentAdConfig = null;
         let isAdMobInitialized = false;
         let activeFeedAdIds = []; 
-        let AdMobNextGenPlugin = null; // Global reference for Native Wrapper
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdminMode = urlParams.get('admin') === 'true';
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // STEP 1: Dynamically import the AdMob plugin through the Import Map
-            // This is strictly required for Native Android execution without a bundler.
-            try {
-                const admobModule = await import('capacitor-admob-nextgen');
-                AdMobNextGenPlugin = admobModule.AdMobNextGen || admobModule.AdMob;
-            } catch (e) {
-                console.log("Web mode detected. Native JS wrapper skipped.");
-            }
+        // --- ADMOB NATIVE DETECTION HELPERS ---
+        function isWebEditor() {
+            return typeof window.Capacitor === 'undefined' || !window.Capacitor.isNative;
+        }
 
+        function getAdMobPlugin() {
+            if (typeof window.Capacitor !== 'undefined' && window.Capacitor.Plugins) {
+                return window.Capacitor.Plugins.AdMobNextGen || window.Capacitor.Plugins.AdMob || null;
+            }
+            return null;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
             streamLiveAdminUpdatesLog();
             listenToAdManager(); 
             bindVisualInterfaceControls();
@@ -222,12 +217,6 @@
             
             initiateLiveInterfaceClocks();
         });
-
-        // STEP 2: Use the imported wrapper directly when checking for native capabilities
-        function getAdMobPlugin() {
-            if (!window.Capacitor || !window.Capacitor.isNative) return null;
-            return AdMobNextGenPlugin || null;
-        }
 
         function listenToAdManager() {
             const adManagerRef = ref(db, `${APP_NODE_NAME}/adManager`);
@@ -247,14 +236,10 @@
         }
 
         async function applyGlobalAdMobConfigurations() {
-            const AdPlugin = getAdMobPlugin();
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
-            const isAdStatusActive = adStatusStr === "TRUE" || adStatusStr === "ON";
-            
-            if (!isAdStatusActive) return;
+            if (adStatusStr !== "TRUE" && adStatusStr !== "ON") return;
 
-            // --- HTML EDITOR MOCKUP FOR BOTTOM BANNER ---
-            if (!AdPlugin) {
+            if (isWebEditor()) {
                 if (isPlacementEnabled('bannerAdHomePage') && currentAdConfig?.adMobBannerUnitId && !document.getElementById('mock-banner-container')) {
                     const bannerDiv = document.createElement('div');
                     bannerDiv.id = 'mock-banner-container';
@@ -271,9 +256,11 @@
                     `;
                     document.body.appendChild(bannerDiv);
                 }
-                return;
+                return; // Stop. Do not attempt native calls.
             }
-            // --- END MOCKUP ---
+
+            const AdPlugin = getAdMobPlugin();
+            if (!AdPlugin) return;
 
             if (!isAdMobInitialized) {
                 try {
@@ -323,14 +310,13 @@
         }
 
         async function triggerArticleAds() {
-            const AdPlugin = getAdMobPlugin();
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
             if (adStatusStr !== "TRUE" && adStatusStr !== "ON") return;
 
             const isInterstitialEnabled = isPlacementEnabled('interstitialAdPostDetails');
             const isNativePostEnabled = isPlacementEnabled('nativeAdPostDetails');
 
-            if (!AdPlugin) {
+            if (isWebEditor()) {
                 if (isInterstitialEnabled && currentAdConfig?.adMobInterstitialUnitId) {
                     const overlay = document.createElement('div');
                     overlay.className = 'mock-interstitial';
@@ -362,6 +348,9 @@
                 }
                 return;
             }
+
+            const AdPlugin = getAdMobPlugin();
+            if (!AdPlugin) return;
 
             if (isInterstitialEnabled && currentAdConfig.adMobInterstitialUnitId) {
                 try {
@@ -750,8 +739,17 @@
 
                     const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
                     if (adStatusStr === "TRUE" || adStatusStr === "ON") {
-                        if (AdPlugin) {
-                            adDiv.style.minHeight = '100px'; 
+                        if (isWebEditor()) {
+                            // --- HTML EDITOR MOCKUP ---
+                            adDiv.innerHTML = `
+                                <div class="mock-ad-container" style="width:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:15px; background:#f9f9f9; border:1px solid #eee; box-sizing:border-box;">
+                                    <span class="mock-ad-badge" style="position:static; display:inline-block; margin-bottom:5px;">AD</span>
+                                    <div style="color:#888; font-size:12px; font-weight:bold;">In-Feed Native Ad Preview</div>
+                                    <div style="color:#aaa; font-size:9px; margin-top:5px;">ID: ${currentAdConfig.adMobNativeUnitId}</div>
+                                </div>
+                            `;
+                        } else if (AdPlugin) {
+                            adDiv.style.minHeight = '300px'; 
                             activeFeedAdIds.push(adPlaceholderId);
                             setTimeout(() => {
                                 if (AdPlugin.showNativeAd) {
@@ -761,15 +759,6 @@
                                     }).catch(e => console.log("Feed Native Ad Error:", e));
                                 }
                             }, 300);
-                        } else {
-                            // --- HTML EDITOR MOCKUP ---
-                            adDiv.innerHTML = `
-                                <div class="mock-ad-container" style="width:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:15px; background:#f9f9f9; border:1px solid #eee; box-sizing:border-box;">
-                                    <span class="mock-ad-badge" style="position:static; display:inline-block; margin-bottom:5px;">AD</span>
-                                    <div style="color:#888; font-size:12px; font-weight:bold;">In-Feed Native Ad Preview</div>
-                                    <div style="color:#aaa; font-size:9px; margin-top:5px;">ID: ${currentAdConfig.adMobNativeUnitId}</div>
-                                </div>
-                            `;
                         }
                     }
                     container.appendChild(adDiv);
