@@ -182,6 +182,7 @@
         let currentAdConfig = null;
         let isAdMobInitialized = false;
         let activeFeedAdIds = []; 
+        let cachedAdMobPlugin = null;
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdminMode = urlParams.get('admin') === 'true';
@@ -203,9 +204,32 @@
             initiateLiveInterfaceClocks();
         });
 
-        function getAdMobPlugin() {
-            if (!window.Capacitor || !window.Capacitor.Plugins) return null;
-            return window.Capacitor.Plugins.AdMobNextGen || window.Capacitor.Plugins.AdMob || null;
+        // ---------------- ADMOB LOGIC START ----------------
+
+        function isNativeApp() {
+            return window.Capacitor && window.Capacitor.isNative;
+        }
+
+        // Asynchronous fallback loop: waits up to 3 seconds for the Android bridge to inject the AdMob plugin
+        async function getAdMobPluginAsync() {
+            if (cachedAdMobPlugin) return cachedAdMobPlugin;
+            
+            for (let i = 0; i < 15; i++) { 
+                if (window.Capacitor && window.Capacitor.Plugins) {
+                    const plugin = window.Capacitor.Plugins.AdMobNextGen || window.Capacitor.Plugins.AdMob;
+                    if (plugin) {
+                        cachedAdMobPlugin = plugin;
+                        return plugin;
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            return null;
+        }
+
+        function isPlacementEnabled(placementKey) {
+            return currentAdConfig?.placements && 
+                   (currentAdConfig.placements[placementKey] === true || String(currentAdConfig.placements[placementKey]).toLowerCase() === "true");
         }
 
         function listenToAdManager() {
@@ -215,26 +239,15 @@
                     currentAdConfig = snapshot.val();
                     applyGlobalAdMobConfigurations();
                 }
-            }, (error) => {
-                console.error("Firebase read error (adManager):", error);
             });
         }
 
-        // Helper function to check if a specific placement is enabled in the database
-        function isPlacementEnabled(placementKey) {
-            return currentAdConfig?.placements && 
-                   (currentAdConfig.placements[placementKey] === true || String(currentAdConfig.placements[placementKey]).toLowerCase() === "true");
-        }
-
         async function applyGlobalAdMobConfigurations() {
-            const AdPlugin = getAdMobPlugin();
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
-            const isAdStatusActive = adStatusStr === "TRUE" || adStatusStr === "ON";
-            
-            if (!isAdStatusActive) return;
+            if (adStatusStr !== "TRUE" && adStatusStr !== "ON") return;
 
-            // --- HTML EDITOR MOCKUP FOR BOTTOM BANNER ---
-            if (!AdPlugin) {
+            // --- 🖥️ HTML EDITOR MOCKUP ---
+            if (!isNativeApp()) {
                 if (isPlacementEnabled('bannerAdHomePage') && currentAdConfig?.adMobBannerUnitId && !document.getElementById('mock-banner-container')) {
                     const bannerDiv = document.createElement('div');
                     bannerDiv.id = 'mock-banner-container';
@@ -251,48 +264,37 @@
                     `;
                     document.body.appendChild(bannerDiv);
                 }
-                return;
+                return; // Stop here, do not run native commands in web editor
             }
             // --- END MOCKUP ---
 
-            if (!isAdMobInitialized) {
-                try {
-                    if (AdPlugin.requestConsentInfo) {
-                        await AdPlugin.requestConsentInfo();
-                    }
-                } catch (e) { console.log("Consent skipped:", e); }
+            // --- 📱 NATIVE ANDROID EXECUTION ---
+            const AdPlugin = await getAdMobPluginAsync();
+            if (!AdPlugin) return;
 
+            if (!isAdMobInitialized) {
+                try { if (AdPlugin.requestConsentInfo) await AdPlugin.requestConsentInfo(); } catch (e) {}
                 try {
                     await AdPlugin.initialize();
                     isAdMobInitialized = true;
-                } catch (e) {
-                    console.error("AdMob Init Failed:", e);
-                    return;
-                }
+                } catch (e) { return; }
             }
 
-            // Prepare Interstitial if placement is active
             if (isPlacementEnabled('interstitialAdPostDetails') && currentAdConfig.adMobInterstitialUnitId) {
                 try {
-                    if (AdPlugin.prepareInterstitial) {
-                        await AdPlugin.prepareInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId });
-                    } else if (AdPlugin.loadInterstitial) {
-                        await AdPlugin.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId });
-                    }
-                } catch (e) { console.log("Interstitial Prepare Error:", e); }
+                    if (AdPlugin.prepareInterstitial) await AdPlugin.prepareInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId });
+                    else if (AdPlugin.loadInterstitial) await AdPlugin.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId });
+                } catch (e) {}
             }
 
-            // App Open Ad Start
             if (isPlacementEnabled('appOpenAdStart') && currentAdConfig.adMobAppOpenUnitId) {
                 try {
                     if (AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: currentAdConfig.adMobAppOpenUnitId });
                     else if (AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: currentAdConfig.adMobAppOpenUnitId });
-                    
                     if (AdPlugin.showAppOpenAd) await AdPlugin.showAppOpenAd();
-                } catch (e) { console.error("App Open error:", e); }
+                } catch (e) {}
             }
 
-            // Banner Ad Home Page
             if (isPlacementEnabled('bannerAdHomePage') && currentAdConfig.adMobBannerUnitId) {
                 try {
                     await AdPlugin.showBanner({
@@ -301,19 +303,19 @@
                         position: 'BOTTOM_CENTER',
                         margin: 65 
                     });
-                } catch (e) { console.error("Banner error:", e); }
+                } catch (e) {}
             }
         }
 
         async function triggerArticleAds() {
-            const AdPlugin = getAdMobPlugin();
             const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
             if (adStatusStr !== "TRUE" && adStatusStr !== "ON") return;
 
             const isInterstitialEnabled = isPlacementEnabled('interstitialAdPostDetails');
             const isNativePostEnabled = isPlacementEnabled('nativeAdPostDetails');
 
-            if (!AdPlugin) {
+            // --- 🖥️ HTML EDITOR MOCKUP ---
+            if (!isNativeApp()) {
                 if (isInterstitialEnabled && currentAdConfig?.adMobInterstitialUnitId) {
                     const overlay = document.createElement('div');
                     overlay.className = 'mock-interstitial';
@@ -346,37 +348,37 @@
                 return;
             }
 
+            // --- 📱 NATIVE ANDROID EXECUTION ---
+            const AdPlugin = await getAdMobPluginAsync();
+            if (!AdPlugin) return;
+
             if (isInterstitialEnabled && currentAdConfig.adMobInterstitialUnitId) {
                 try {
                     await AdPlugin.showInterstitial();
-                    if (AdPlugin.prepareInterstitial) {
-                        AdPlugin.prepareInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e=>console.log(e));
-                    } else if (AdPlugin.loadInterstitial) {
-                        AdPlugin.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e=>console.log(e));
-                    }
-                } catch (e) { console.error("Interstitial ad error:", e); }
+                    if (AdPlugin.prepareInterstitial) AdPlugin.prepareInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e=>{});
+                    else if (AdPlugin.loadInterstitial) AdPlugin.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e=>{});
+                } catch (e) {}
             }
 
             if (isNativePostEnabled && currentAdConfig.adMobNativeUnitId) {
                 setTimeout(async () => {
                     try {
-                        if (AdPlugin.showNativeAd) {
-                            await AdPlugin.showNativeAd({ adId: currentAdConfig.adMobNativeUnitId, elementId: 'article-native-ad' });
-                        }
-                    } catch (e) { console.error("Native Article error:", e); }
+                        if (AdPlugin.showNativeAd) await AdPlugin.showNativeAd({ adId: currentAdConfig.adMobNativeUnitId, elementId: 'article-native-ad' });
+                    } catch (e) {}
                 }, 300);
             }
         }
 
         async function removeArticleAds() {
-            const AdPlugin = getAdMobPlugin();
+            if (!isNativeApp()) return;
+            const AdPlugin = await getAdMobPluginAsync();
             if (!AdPlugin) return;
             try {
-                if (AdPlugin.hideNativeAd) {
-                    await AdPlugin.hideNativeAd({ elementId: 'article-native-ad' });
-                }
-            } catch (e) { console.error("Remove native error:", e); }
+                if (AdPlugin.hideNativeAd) await AdPlugin.hideNativeAd({ elementId: 'article-native-ad' });
+            } catch (e) {}
         }
+
+        // ---------------- ADMOB LOGIC END ----------------
 
         function getYouTubeEmbedUrl(url) {
             if (!url) return null;
@@ -480,16 +482,12 @@
             onValue(shikelaNewsRef, (snapshot) => {
                 rawShikelaNewsData = snapshot.exists() ? snapshot.val() : {};
                 rebuildAndRenderBroadcastsCache();
-            }, (error) => {
-                console.error("Firebase read error (shikelaNews):", error);
-            });
+            }, (error) => {});
 
             onValue(newNewsRef, (snapshot) => {
                 rawNewNewsData = snapshot.exists() ? snapshot.val() : {};
                 rebuildAndRenderBroadcastsCache();
-            }, (error) => {
-                console.error("Firebase read error (newNews):", error);
-            });
+            }, (error) => {});
         }
 
         function renderEmptyState() {
@@ -541,7 +539,6 @@
 
                 triggerUiPopup("✅", "Article Duplicated", `Successfully duplicated item into ${APP_NODE_NAME}/${targetNodePath}.`);
             } catch (err) {
-                console.error("Duplication failed:", err);
                 triggerUiPopup("❌", "Duplication Error", "Failed to duplicate item into database.");
             }
         };
@@ -689,15 +686,21 @@
 
         function renderFilteredBroadcasts() {
             const container = document.getElementById('broadcastsContainer');
-            const AdPlugin = getAdMobPlugin();
             if (!container) return;
             
-            if (AdPlugin && AdPlugin.hideNativeAd) {
-                activeFeedAdIds.forEach(adId => {
-                    AdPlugin.hideNativeAd({ elementId: adId }).catch(e=>console.log(e));
+            // Clean up native ads asynchronously
+            if (isNativeApp()) {
+                getAdMobPluginAsync().then(AdPlugin => {
+                    if (AdPlugin && AdPlugin.hideNativeAd) {
+                        activeFeedAdIds.forEach(adId => {
+                            AdPlugin.hideNativeAd({ elementId: adId }).catch(e=>{});
+                        });
+                    }
+                    activeFeedAdIds = []; 
                 });
+            } else {
+                activeFeedAdIds = []; 
             }
-            activeFeedAdIds = []; 
 
             container.innerHTML = "";
 
@@ -721,7 +724,6 @@
                 const isEverySecondItem = (index + 1) % 2 === 0;
                 const isVeryLastItem = (index === filtered.length - 1);
                 
-                // --- CONNECTED PLACEMENT TOGGLE FOR FEED NATIVE AD ---
                 const isFeedNativeEnabled = isPlacementEnabled('nativeAdPostList');
                 
                 if (isFeedNativeEnabled && (isEverySecondItem || isVeryLastItem) && currentAdConfig?.adMobNativeUnitId) {
@@ -734,19 +736,8 @@
 
                     const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
                     if (adStatusStr === "TRUE" || adStatusStr === "ON") {
-                        if (AdPlugin) {
-                            adDiv.style.minHeight = '100px'; 
-                            activeFeedAdIds.push(adPlaceholderId);
-                            setTimeout(() => {
-                                if (AdPlugin.showNativeAd) {
-                                    AdPlugin.showNativeAd({
-                                        adId: currentAdConfig.adMobNativeUnitId,
-                                        elementId: adPlaceholderId
-                                    }).catch(e => console.log("Feed Native Ad Error:", e));
-                                }
-                            }, 300);
-                        } else {
-                            // --- HTML EDITOR MOCKUP ---
+                        if (!isNativeApp()) {
+                            // --- 🖥️ HTML EDITOR MOCKUP ---
                             adDiv.innerHTML = `
                                 <div class="mock-ad-container" style="width:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:15px; background:#f9f9f9; border:1px solid #eee; box-sizing:border-box;">
                                     <span class="mock-ad-badge" style="position:static; display:inline-block; margin-bottom:5px;">AD</span>
@@ -754,6 +745,20 @@
                                     <div style="color:#aaa; font-size:9px; margin-top:5px;">ID: ${currentAdConfig.adMobNativeUnitId}</div>
                                 </div>
                             `;
+                        } else {
+                            // --- 📱 NATIVE ANDROID EXECUTION ---
+                            adDiv.style.minHeight = '100px'; 
+                            activeFeedAdIds.push(adPlaceholderId);
+                            getAdMobPluginAsync().then(AdPlugin => {
+                                if (AdPlugin && AdPlugin.showNativeAd) {
+                                    setTimeout(() => {
+                                        AdPlugin.showNativeAd({
+                                            adId: currentAdConfig.adMobNativeUnitId,
+                                            elementId: adPlaceholderId
+                                        }).catch(e => {});
+                                    }, 300);
+                                }
+                            });
                         }
                     }
                     container.appendChild(adDiv);
