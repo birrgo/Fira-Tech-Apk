@@ -4,95 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- Primary Page Metadata -->
     <title>Yala Tech | Online Work in Ethiopia, Tech Tips & Vacancies</title>
     <meta name="title" content="Shiqela | Online Work in Ethiopia, Tech Tips & Vacancies">
     <meta name="description" content="Shiqela is your primary platform for online work in Ethiopia, tech tips, digital skills, remote work strategies, and the latest online vacancy updates.">
-    <meta name="keywords" content="shiqela, shikela, online work in ethiopia, tech tips, online vacancy, remote jobs ethiopia, work from home ethiopia, ethiopian tech, digital skills, online jobs ethiopia">
-    <meta name="author" content="Shiqela">
-    <meta name="robots" content="index, follow, max-image-preview:large">
-    <link rel="canonical" href="https://shiqela.online/">
-
-    <!-- Open Graph / Facebook / Discord / WhatsApp / Telegram Meta Tags -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://shiqela.online/">
-    <meta property="og:site_name" content="Yala Tech">
-    <meta property="og:title" content="Yala Tech - Home & Latest Index">
-    <meta property="og:description" content="Stay updated with the latest news, tech updates, online jobs, and social media tips on Yala Tech.">
-    <meta property="og:image" content="https://shiqela.online/s.png">
-    <meta property="og:image:secure_url" content="https://shiqela.online/s.png">
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="500">
-    <meta property="og:image:height" content="500">
-
-    <!-- X / Twitter Card Meta Tags -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Yala Tech - Home & Latest Index">
-    <meta name="twitter:description" content="Stay updated with the latest news, tech updates, online jobs, and social media tips on Yala Tech.">
-    <meta name="twitter:image" content="https://shiqela.online/s.png">
-    <meta name="twitter:image:alt" content="Yala Tech Logo and Branding Preview">
-
-    <!-- Schema.org Structured Data for Google Search SEO -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Yala Tech",
-      "url": "https://shiqela.online/",
-      "image": "https://shiqela.online/s.png",
-      "description": "Stay updated with the latest news, tech updates, online jobs, and social media tips on Shikela."
-    }
-    </script>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="news.css">
     <style>
-        /* Sidebar iframe drawer overlay setup */
         .menu-iframe-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); z-index: 9999;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
         }
-
-        .menu-iframe-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* 3/4 width (75%), 100% full height iframe container */
+        .menu-iframe-overlay.active { opacity: 1; visibility: visible; }
         .menu-iframe-drawer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 75%;
-            height: 100%;
-            border: none;
-            background: #081B38;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease-in-out;
+            position: absolute; top: 0; left: 0; width: 75%; height: 100%;
+            border: none; background: #081B38;
+            transform: translateX(-100%); transition: transform 0.3s ease-in-out;
             box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
         }
-
-        .menu-iframe-overlay.active .menu-iframe-drawer {
-            transform: translateX(0);
-        }
+        .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
     </style>
 </head>
 <body>
 
     <div class="app-view">
-        <!-- Hidden Image for Googlebot Indexing -->
-        <img src="https://shiqela.online/s.png" alt="Shikela Logo Preview" style="display:none;">
-
         <svg class="bg-wave bg-wave-top" viewBox="0 0 375 200" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M0 0H375V75C375 75 280 155 0 95V0Z" fill="url(#paint0_linear)"/>
             <defs>
@@ -103,7 +37,6 @@
             </defs>
         </svg>
 
-        <!-- 3/4 Width, Full Height Menu Drawer with Iframe -->
         <div class="menu-iframe-overlay" id="menuIframeOverlay">
             <iframe class="menu-iframe-drawer" id="menuIframe" src="about:blank"></iframe>
         </div>
@@ -143,7 +76,6 @@
         </div>
 
         <header class="nav-header" style="display: flex; align-items: center; justify-content: space-between;">
-            <!-- Left: 3-line Menu Button -->
             <div class="header-left-group" style="display: flex; align-items: center;">
                 <button type="button" class="menu-action-btn" id="openMenuIframeBtn" aria-label="Open Menu" style="background: none; border: none; cursor: pointer; color: inherit; padding: 0; display: flex; align-items: center; justify-content: center;">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -154,12 +86,10 @@
                 </button>
             </div>
 
-            <!-- Center: Title -->
             <div class="header-center-group" style="flex: 1; text-align: center;">
                 <h1 class="header-title-text" style="margin: 0; text-align: center;">What's new?</h1>
             </div>
 
-            <!-- Right: Live Clock & Search -->
             <div class="header-right-group" style="display: flex; align-items: center; gap: 8px;">
                 <div class="header-live-clock-badge" id="topCornerLiveClock">00:00:00 AM</div>
                 <button class="search-action-btn" id="openSearchBtn" aria-label="Search News">
@@ -169,7 +99,6 @@
         </header>
 
         <main class="app-content">
-            <!-- Two-Choice Top Menu with Yala Tech Update and Yala Tech Tips -->
             <div class="category-filter-row filter-btn-grid" id="filterPillsRow">
                 <button class="filter-pill filter-btn active-pill active" data-filter="Shikela Update" data-category="Shikela Update">Yala Tech Update</button>
                 <button class="filter-pill filter-btn" data-filter="Shikela Tips" data-category="Shikela Tips">Yala Tech Tips</button>
@@ -186,33 +115,25 @@
             </footer>
         </main>
 
-        <!-- Bottom Navigation Menu -->
         <nav class="bottom-nav">
-            <!-- 1. Home (Active for index.html) -->
             <a id="nav-home" href="index.html" class="nav-item active">
                 <div class="icon-bg">
                     <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                 </div>
                 <span>Home</span>
             </a>
-
-            <!-- 2. Online Jobs -->
             <a id="nav-jobs" href="s.html" class="nav-item">
                 <div class="icon-bg">
                     <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
                 </div>
                 <span>Online Jobs</span>
             </a>
-
-            <!-- 3. Tech -->
             <a id="nav-tech" href="in.html" class="nav-item">
                 <div class="icon-bg">
                     <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                 </div>
                 <span>Tech</span>
             </a>
-
-            <!-- 4. Social Media -->
             <a id="nav-social" href="sm.html" class="nav-item">
                 <div class="icon-bg">
                     <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
@@ -222,12 +143,10 @@
         </nav>
     </div>
 
-    <!-- Integrated Module Script for Firebase & Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase Database Config
         const firebaseConfig = {
             apiKey: "AIzaSyCqwgwiukwKb7o6gwnaLoPQSWc7BfMDuYQ",
             authDomain: "besuad.firebaseapp.com",
@@ -242,9 +161,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // ==========================================
-        // 🔴 Set to app1 for this build
-        // ==========================================
         const APP_NODE_NAME = "app1"; 
 
         let rawShikelaNewsData = {};
@@ -253,17 +169,16 @@
         let currentActiveCategoryFilter = "Shikela Update";
         let cardClockIntervalId = null;
         
-        // ADMOB VARIABLES
         let currentAdConfig = null;
         let isAdMobInitialized = false;
-        let activeFeedAdIds = []; // Tracks dynamically created feed ads
+        let activeFeedAdIds = []; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdminMode = urlParams.get('admin') === 'true';
 
         document.addEventListener('DOMContentLoaded', () => {
             streamLiveAdminUpdatesLog();
-            listenToAdManager(); // Connects AdMob to Database
+            listenToAdManager(); 
             bindVisualInterfaceControls();
             setupSearchEngineControls();
             setupNewsReaderModalControls();
@@ -293,17 +208,23 @@
         }
 
         async function applyGlobalAdMobConfigurations() {
-            const isAdStatusActive = currentAdConfig?.adStatus === true || currentAdConfig?.adStatus === "true";
+            // FIX: Evaluate database status accounting for "ON" string
+            const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
+            const isAdStatusActive = adStatusStr === "TRUE" || adStatusStr === "ON";
             
-            // FIX 1: The capacitor-admob-nextgen plugin uses AdMobNextGen, not AdMob
             if (!isAdStatusActive || !window.Capacitor || !window.Capacitor.Plugins.AdMobNextGen) return;
             
             const { AdMobNextGen } = window.Capacitor.Plugins;
 
             if (!isAdMobInitialized) {
+                // FIX: Isolate consent request so it doesn't crash initialization
                 try {
-                    // FIX 2: Next-Gen SDK requires consent check before initialization
                     await AdMobNextGen.requestConsentInfo();
+                } catch (e) {
+                    console.log("Consent check skipped or failed (test mode):", e);
+                }
+
+                try {
                     await AdMobNextGen.initialize();
                     isAdMobInitialized = true;
                 } catch (e) {
@@ -312,12 +233,10 @@
                 }
             }
 
-            // Prepare Interstitial immediately on load (FIX 3: loadInterstitial instead of prepareInterstitial)
             if (currentAdConfig.adMobInterstitialUnitId) {
                 AdMobNextGen.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e => console.log("Interstitial Prepare Error:", e));
             }
 
-            // App Open Ad (Displays on App Start)
             if (currentAdConfig.placements?.appOpenAdStart && currentAdConfig.adMobAppOpenUnitId) {
                 try {
                     await AdMobNextGen.loadAppOpen({ adId: currentAdConfig.adMobAppOpenUnitId });
@@ -325,7 +244,6 @@
                 } catch (e) { console.error("App Open Ad error:", e); }
             }
 
-            // Bottom Banner Ad
             if (currentAdConfig.placements?.bannerAdHomePage && currentAdConfig.adMobBannerUnitId) {
                 try {
                     await AdMobNextGen.showBanner({
@@ -339,21 +257,20 @@
         }
 
         async function triggerArticleAds() {
-            const isAdStatusActive = currentAdConfig?.adStatus === true || currentAdConfig?.adStatus === "true";
+            const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
+            const isAdStatusActive = adStatusStr === "TRUE" || adStatusStr === "ON";
+            
             if (!isAdStatusActive || !window.Capacitor || !window.Capacitor.Plugins.AdMobNextGen) return;
             
             const { AdMobNextGen } = window.Capacitor.Plugins;
 
-            // Trigger Interstitial when opening full article
             if (currentAdConfig.adMobInterstitialUnitId) {
                 try {
                     await AdMobNextGen.showInterstitial();
-                    // Re-prepare the next one immediately after showing it
                     AdMobNextGen.loadInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId }).catch(e => console.log(e));
                 } catch (e) { console.error("Interstitial ad error:", e); }
             }
 
-            // Large Article Native Ad
             if (currentAdConfig.placements?.nativeAdPostDetails && currentAdConfig.adMobNativeUnitId) {
                 try {
                     if (AdMobNextGen.showNativeAd) {
@@ -437,7 +354,6 @@
         function rebuildAndRenderBroadcastsCache() {
             localCachedBroadcasts = [];
 
-            // Shikela Update node
             Object.keys(rawShikelaNewsData).forEach(key => {
                 const item = rawShikelaNewsData[key];
                 if (typeof item === 'object' && item !== null) {
@@ -452,7 +368,6 @@
                 }
             });
 
-            // Shikela Tips node
             Object.keys(rawNewNewsData).forEach(key => {
                 const item = rawNewNewsData[key];
                 if (typeof item === 'object' && item !== null) {
@@ -467,7 +382,6 @@
                 }
             });
 
-            // Sort newest first
             localCachedBroadcasts.sort((a, b) => b.resolvedTimestamp - a.resolvedTimestamp);
 
             renderFilteredBroadcasts();
@@ -529,11 +443,6 @@
                 
                 const currentTitle = clonedPayload.title || clonedPayload.newsTitle || "Untitled";
                 clonedPayload.title = `${currentTitle} (Copy)`;
-
-                const currentCode = clonedPayload.newsCode || clonedPayload.code || "";
-                if (currentCode) {
-                    clonedPayload.newsCode = `${currentCode}_COPY`;
-                }
 
                 const nodeRef = ref(db, `${APP_NODE_NAME}/${targetNodePath}`);
                 const newRef = push(nodeRef);
@@ -653,7 +562,6 @@
                 `;
             }
 
-            // HTML for Large Native Ad inside the article (like 45655.jpg)
             const articleNativeAdHtml = `<div id="article-native-ad" style="width: 100%; min-height: 300px; background: transparent; margin: 15px auto; clear: both; display: flex; justify-content: center; align-items: center;"></div>`;
 
             readerBody.innerHTML = `
@@ -668,15 +576,12 @@
                 ${imageHTML}
                 ${videoHTML}
                 <div class="reader-full-body">${fullContent}</div>
-                
-                <!-- AdMob Native Ad Placeholder -->
                 ${articleNativeAdHtml}
-                
                 ${redirectBtnHTML}
             `;
 
             readerOverlay.classList.add('active-reader');
-            triggerArticleAds(); // Trigger AdMob Interstitial and load Native Ad
+            triggerArticleAds(); 
         };
 
         function setupNewsReaderModalControls() {
@@ -686,7 +591,7 @@
             if (closeBtn && readerOverlay) {
                 closeBtn.addEventListener('click', () => {
                     readerOverlay.classList.remove('active-reader');
-                    removeArticleAds(); // Hide article AdMob elements when closing
+                    removeArticleAds(); 
                 });
             }
         }
@@ -695,13 +600,12 @@
             const container = document.getElementById('broadcastsContainer');
             if (!container) return;
             
-            // Clean up old dynamically created ads before rendering to prevent duplicates/errors
             if (window.Capacitor && window.Capacitor.Plugins.AdMobNextGen && window.Capacitor.Plugins.AdMobNextGen.hideNativeAd) {
                 activeFeedAdIds.forEach(adId => {
                     window.Capacitor.Plugins.AdMobNextGen.hideNativeAd({ elementId: adId }).catch(e=>console.log(e));
                 });
             }
-            activeFeedAdIds = []; // reset array
+            activeFeedAdIds = []; 
 
             container.innerHTML = "";
 
@@ -717,30 +621,32 @@
             }
 
             filtered.forEach((item, index) => {
-                // Add the regular news item card
                 const card = document.createElement('article');
                 card.className = "featured-broadcast-card";
                 card.innerHTML = buildSingleNewsCardHTML(item);
                 container.appendChild(card);
                 
-                // Inject Native Ad placeholder after every 2 items
                 if ((index + 1) % 2 === 0 && currentAdConfig?.placements?.nativeAdPostList && currentAdConfig?.adMobNativeUnitId) {
                     const adPlaceholderId = `feed-native-ad-${index}`;
                     const adDiv = document.createElement('div');
                     adDiv.id = adPlaceholderId;
                     adDiv.style.width = '100%';
-                    adDiv.style.minHeight = '300px'; // Crucial for native ads
+                    adDiv.style.minHeight = '300px'; 
                     adDiv.style.marginBottom = '15px';
                     adDiv.style.background = 'transparent';
                     container.appendChild(adDiv);
                     
                     activeFeedAdIds.push(adPlaceholderId);
 
-                    if (window.Capacitor && window.Capacitor.Plugins.AdMobNextGen && (currentAdConfig?.adStatus === true || currentAdConfig?.adStatus === "true")) {
-                        window.Capacitor.Plugins.AdMobNextGen.showNativeAd({
-                            adId: currentAdConfig.adMobNativeUnitId,
-                            elementId: adPlaceholderId
-                        }).catch(e => console.log("Feed Native Ad Error:", e));
+                    // FIX: Also check for "ON" string when rendering feed ads
+                    if (window.Capacitor && window.Capacitor.Plugins.AdMobNextGen) {
+                        const adStatusStr = String(currentAdConfig?.adStatus).toUpperCase();
+                        if (adStatusStr === "TRUE" || adStatusStr === "ON") {
+                            window.Capacitor.Plugins.AdMobNextGen.showNativeAd({
+                                adId: currentAdConfig.adMobNativeUnitId,
+                                elementId: adPlaceholderId
+                            }).catch(e => console.log("Feed Native Ad Error:", e));
+                        }
                     }
                 }
             });
@@ -857,7 +763,6 @@
         }
     </script>
 
-    <!-- Script to manage iframe drawer toggling -->
     <script>
         const openBtn = document.getElementById('openMenuIframeBtn');
         const overlay = document.getElementById('menuIframeOverlay');
