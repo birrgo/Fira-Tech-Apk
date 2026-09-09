@@ -182,7 +182,7 @@
             </div>
 
             <footer class="verified-footer-shield">
-                <span class="footer-shield-text">Yala Tech  Matrix Verified</span>
+                <span class="footer-shield-text">Yala Tech Matrix Verified</span>
             </footer>
         </main>
 
@@ -243,21 +243,26 @@
         const db = getDatabase(app);
 
         // ==========================================
-        // 🔴 Set to app10 for this build
+        // 🔴 Set to app1 for this build
         // ==========================================
-        const APP_NODE_NAME = "app10"; 
+        const APP_NODE_NAME = "app1"; 
 
         let rawShikelaNewsData = {};
         let rawNewNewsData = {};
         let localCachedBroadcasts = [];
         let currentActiveCategoryFilter = "Shikela Update";
         let cardClockIntervalId = null;
+        
+        // AdMob Tracking State
+        let currentAdConfig = null;
+        let isAdMobInitialized = false;
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdminMode = urlParams.get('admin') === 'true';
 
         document.addEventListener('DOMContentLoaded', () => {
             streamLiveAdminUpdatesLog();
+            listenToAdManager(); // Start listening for Ads configuration
             bindVisualInterfaceControls();
             setupSearchEngineControls();
             setupNewsReaderModalControls();
@@ -271,6 +276,96 @@
             
             initiateLiveInterfaceClocks();
         });
+
+        // ---------------- ADMOB LOGIC START ----------------
+
+        function listenToAdManager() {
+            const adManagerRef = ref(db, `${APP_NODE_NAME}/adManager`);
+            onValue(adManagerRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    currentAdConfig = snapshot.val();
+                    applyAdMobConfigurations();
+                }
+            }, (error) => {
+                console.error("Firebase read error (adManager):", error);
+            });
+        }
+
+        async function applyAdMobConfigurations() {
+            // Only proceed if ads are active and Capacitor AdMob plugin is available
+            const isAdStatusActive = currentAdConfig.adStatus === true || currentAdConfig.adStatus === "true";
+            if (!isAdStatusActive || !window.Capacitor || !window.Capacitor.Plugins.AdMob) return;
+            
+            const { AdMob } = window.Capacitor.Plugins;
+
+            if (!isAdMobInitialized) {
+                try {
+                    await AdMob.initialize();
+                    isAdMobInitialized = true;
+                } catch (e) {
+                    console.error("AdMob Initialization Failed:", e);
+                    return;
+                }
+            }
+
+            // 1. App Open Ad
+            if (currentAdConfig.placements?.appOpenAdStart && currentAdConfig.adMobAppOpenUnitId) {
+                try {
+                    await AdMob.prepareAppOpenAd({ adId: currentAdConfig.adMobAppOpenUnitId });
+                    await AdMob.showAppOpenAd();
+                } catch (e) { console.error("App Open Ad error:", e); }
+            }
+
+            // 2. Banner Ad Home Page (Bottom)
+            if (currentAdConfig.placements?.bannerAdHomePage && currentAdConfig.adMobBannerUnitId) {
+                try {
+                    await AdMob.showBanner({
+                        adId: currentAdConfig.adMobBannerUnitId,
+                        adSize: 'BANNER',
+                        position: 'BOTTOM_CENTER',
+                        margin: 60 // Margin above the bottom nav bar
+                    });
+                } catch (e) { console.error("Home Banner error:", e); }
+            }
+        }
+
+        async function triggerArticleAds() {
+            const isAdStatusActive = currentAdConfig?.adStatus === true || currentAdConfig?.adStatus === "true";
+            if (!isAdStatusActive || !window.Capacitor || !window.Capacitor.Plugins.AdMob) return;
+            
+            const { AdMob } = window.Capacitor.Plugins;
+
+            // 1. Article Interstitial Ad
+            if (currentAdConfig.placements?.interstitialAdPostDetails && currentAdConfig.adMobInterstitialUnitId) {
+                try {
+                    await AdMob.prepareInterstitial({ adId: currentAdConfig.adMobInterstitialUnitId });
+                    await AdMob.showInterstitial();
+                } catch (e) { console.error("Interstitial ad error:", e); }
+            }
+
+            // 2. Article Native / Inline Banners injected into HTML placeholders
+            if (currentAdConfig.placements?.nativeAdPostDetails && currentAdConfig.adMobNativeUnitId) {
+                try {
+                    if (AdMob.showNativeAd) { // If using Capacitor AdMob NextGen native feature
+                        await AdMob.showNativeAd({ adId: currentAdConfig.adMobNativeUnitId, elementId: 'article-ad-end' });
+                        await AdMob.showNativeAd({ adId: currentAdConfig.adMobNativeUnitId, elementId: 'article-ad-above-btn' });
+                    }
+                } catch (e) { console.error("Native ad injection error:", e); }
+            }
+        }
+
+        async function removeArticleAds() {
+            if (!window.Capacitor || !window.Capacitor.Plugins.AdMob) return;
+            const { AdMob } = window.Capacitor.Plugins;
+            try {
+                if (AdMob.hideNativeAd) {
+                    await AdMob.hideNativeAd({ elementId: 'article-ad-end' });
+                    await AdMob.hideNativeAd({ elementId: 'article-ad-above-btn' });
+                }
+            } catch (e) { console.error("Failed to remove native ads", e); }
+        }
+
+        // ---------------- ADMOB LOGIC END ----------------
 
         function getYouTubeEmbedUrl(url) {
             if (!url) return null;
@@ -553,6 +648,10 @@
                 `;
             }
 
+            // HTML for the two 300x250 AdMob containers without disrupting original image content
+            const articleAdEndHtml = `<div id="article-ad-end" style="width: 300px; height: 250px; background: transparent; margin: 15px auto; display: flex; justify-content: center; align-items: center; clear: both;"></div>`;
+            const articleAdAboveBtnHtml = `<div id="article-ad-above-btn" style="width: 300px; height: 250px; background: transparent; margin: 15px auto; display: flex; justify-content: center; align-items: center; clear: both;"></div>`;
+
             readerBody.innerHTML = `
                 ${adminDuplicateBtnReader}
                 <div class="reader-meta-bar">
@@ -565,10 +664,18 @@
                 ${imageHTML}
                 ${videoHTML}
                 <div class="reader-full-body">${fullContent}</div>
+                
+                <!-- Ad Placeholder 1: End of Article -->
+                ${articleAdEndHtml}
+                
+                <!-- Ad Placeholder 2: Above Redirect Button -->
+                ${articleAdAboveBtnHtml}
+                
                 ${redirectBtnHTML}
             `;
 
             readerOverlay.classList.add('active-reader');
+            triggerArticleAds(); // Fire AdMob requests
         };
 
         function setupNewsReaderModalControls() {
@@ -578,6 +685,7 @@
             if (closeBtn && readerOverlay) {
                 closeBtn.addEventListener('click', () => {
                     readerOverlay.classList.remove('active-reader');
+                    removeArticleAds(); // Hide article AdMob elements if closing
                 });
             }
         }
