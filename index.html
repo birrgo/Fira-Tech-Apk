@@ -53,6 +53,24 @@
         }
         .mock-test-ad-title { font-size: 16px; color: #333; margin: 15px 0 5px 0; font-weight: 700; }
         .mock-test-ad-desc { font-size: 12px; color: #777; margin: 0; word-break: break-all; }
+
+        /* Full-Screen Web Mock Interstitial Ad */
+        .mock-interstitial-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 99999;
+            display: none; align-items: center; justify-content: center;
+            padding: 20px; box-sizing: border-box;
+        }
+        .mock-interstitial-overlay.active { display: flex; }
+        .mock-interstitial-card {
+            background: #ffffff; width: 100%; max-width: 360px; border-radius: 12px;
+            padding: 24px; text-align: center; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .mock-interstitial-close {
+            position: absolute; top: 12px; right: 12px; background: #e2e8f0;
+            border: none; border-radius: 50%; width: 32px; height: 32px;
+            font-size: 16px; font-weight: bold; cursor: pointer; color: #333;
+        }
     </style>
 </head>
 <body style="padding-bottom: 60px;">
@@ -156,6 +174,19 @@
             </div>
         </div>
 
+        <!-- Full-Screen Interstitial Ad Web Mockup -->
+        <div class="mock-interstitial-overlay" id="mockInterstitialModal">
+            <div class="mock-interstitial-card">
+                <button class="mock-interstitial-close" id="closeMockInterstitialBtn">✕</button>
+                <span style="background:#4285f4; color:#fff; font-size:11px; padding:3px 8px; border-radius:4px; font-weight:bold;">WEB MOCK INTERSTITIAL</span>
+                <div style="font-size:48px; margin: 20px 0 10px;">📢</div>
+                <h3 style="margin: 0 0 8px; color: #1e293b;">AdMob Interstitial Ad Preview</h3>
+                <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;" id="mockInterstitialIdText">ID: ca-app-pub-...</p>
+                <p style="font-size: 13px; color: #475569;">In the generated APK, a full-screen Google AdMob ad will take over the screen here.</p>
+                <button id="mockInterstitialContinueBtn" style="width: 100%; margin-top: 15px; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Continue to Article</button>
+            </div>
+        </div>
+
         <!-- Bottom Navigation Menu -->
         <nav class="bottom-nav">
             <a id="nav-home" href="index.html" class="nav-item active">
@@ -207,13 +238,24 @@
 
         window.globalAdConfig = {};
 
-        // --- BULLETPROOF NATIVE BRIDGE DETECTION ---
+        // --- NATIVE BRIDGE DETECTION (UPDATED FOR CAPACITOR V6) ---
         function getAdMobPlugin() {
             return window.AdMobPlugin || null; 
         }
         function isNativeApp() {
-            // Evaluates TRUE inside APK, FALSE in web browser/editor
-            return typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNative === true;
+            // Check if Capacitor object is loaded
+            if (typeof window === 'undefined' || !window.Capacitor) {
+                return false;
+            }
+            // Use the correct API for modern Capacitor (v3, v4, v5, v6)
+            if (typeof window.Capacitor.isNativePlatform === 'function') {
+                return window.Capacitor.isNativePlatform();
+            }
+            // Fallback API check
+            if (typeof window.Capacitor.getPlatform === 'function') {
+                return window.Capacitor.getPlatform() === 'android' || window.Capacitor.getPlatform() === 'ios';
+            }
+            return false;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -341,42 +383,58 @@
             }
         }
 
-        // 3. Interstitial Ad
-        async function showInterstitialAdMock(onAdClosedCallback) {
+        // 3. Interstitial Ad (UPDATED WITH VISUAL MOCK)
+        function showInterstitialAdMock(onAdClosedCallback) {
             const AdPlugin = getAdMobPlugin();
-            if (window.globalAdConfig?.placements?.interstitialAdPostDetails && window.globalAdConfig.interstitialId) {
-                
-                triggerUiPopup("⏳", "Loading Content", "Please wait while we prepare the article...");
-                document.getElementById('closePopupBtn').style.display = 'none'; 
 
+            if (window.globalAdConfig?.placements?.interstitialAdPostDetails && window.globalAdConfig.interstitialId) {
                 if (isNativeApp() && AdPlugin) {
-                    try {
-                        // isTesting: false to ensure real ads in APK
-                        if(AdPlugin.prepareInterstitial) await AdPlugin.prepareInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: false });
-                        else if(AdPlugin.loadInterstitial) await AdPlugin.loadInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: false });
-                        
-                        document.getElementById('customPopupModule').classList.remove('show-popup');
-                        document.getElementById('closePopupBtn').style.display = 'block';
-                        
-                        await AdPlugin.showInterstitial();
-                        onAdClosedCallback();
-                    } catch (e) {
-                        console.error("Interstitial Ad Failed:", e);
-                        document.getElementById('customPopupModule').classList.remove('show-popup');
-                        document.getElementById('closePopupBtn').style.display = 'block';
-                        onAdClosedCallback(); 
-                    }
+                    // --- APK LOGIC (REAL ADMOB) ---
+                    triggerUiPopup("⏳", "Loading Content", "Please wait while we prepare the article...");
+                    document.getElementById('closePopupBtn').style.display = 'none';
+
+                    (async () => {
+                        try {
+                            if (AdPlugin.prepareInterstitial) {
+                                await AdPlugin.prepareInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: false });
+                            } else if (AdPlugin.loadInterstitial) {
+                                await AdPlugin.loadInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: false });
+                            }
+
+                            document.getElementById('customPopupModule').classList.remove('show-popup');
+                            document.getElementById('closePopupBtn').style.display = 'block';
+
+                            await AdPlugin.showInterstitial();
+                            onAdClosedCallback();
+                        } catch (e) {
+                            console.error("Interstitial Ad Failed:", e);
+                            document.getElementById('customPopupModule').classList.remove('show-popup');
+                            document.getElementById('closePopupBtn').style.display = 'block';
+                            onAdClosedCallback();
+                        }
+                    })();
                 } else {
-                    // WEB MOCK: Simply fake a loading delay
-                    setTimeout(() => {
-                        document.getElementById('customPopupModule').classList.remove('show-popup');
-                        document.getElementById('closePopupBtn').style.display = 'block';
-                        console.log("Web Mock: Interstitial ad skipped. Continuing to article.");
-                        onAdClosedCallback();
-                    }, 800); 
+                    // --- WEB EDITOR LOGIC (VISUAL MOCK POPUP) ---
+                    const mockModal = document.getElementById('mockInterstitialModal');
+                    const idLabel = document.getElementById('mockInterstitialIdText');
+                    const closeBtn = document.getElementById('closeMockInterstitialBtn');
+                    const continueBtn = document.getElementById('mockInterstitialContinueBtn');
+
+                    if (idLabel) idLabel.innerText = `ID: ${window.globalAdConfig.interstitialId}`;
+                    if (mockModal) mockModal.classList.add('active');
+
+                    const dismissMockAd = () => {
+                        if (mockModal) mockModal.classList.remove('active');
+                        closeBtn.removeEventListener('click', dismissMockAd);
+                        continueBtn.removeEventListener('click', dismissMockAd);
+                        onAdClosedCallback(); // Opens the article
+                    };
+
+                    closeBtn.addEventListener('click', dismissMockAd);
+                    continueBtn.addEventListener('click', dismissMockAd);
                 }
             } else {
-                onAdClosedCallback(); 
+                onAdClosedCallback();
             }
         }
 
