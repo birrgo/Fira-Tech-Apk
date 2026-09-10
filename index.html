@@ -8,18 +8,6 @@
     <title>Yala Tech | Online Work in Ethiopia, Tech Tips & Vacancies</title>
     <meta name="title" content="Shiqela | Online Work in Ethiopia, Tech Tips & Vacancies">
     <meta name="description" content="Shiqela is your primary platform for online work in Ethiopia, tech tips, digital skills, remote work strategies, and the latest online vacancy updates.">
-    <meta name="keywords" content="shiqela, shikela, online work in ethiopia, tech tips, online vacancy, remote jobs ethiopia, work from home ethiopia, ethiopian tech, digital skills, online jobs ethiopia">
-    <meta name="author" content="Shiqela">
-    <meta name="robots" content="index, follow, max-image-preview:large">
-    <link rel="canonical" href="https://shiqela.online/">
-
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://shiqela.online/">
-    <meta property="og:site_name" content="Yala Tech">
-    <meta property="og:title" content="Yala Tech - Home & Latest Index">
-    <meta property="og:description" content="Stay updated with the latest news, tech updates, online jobs, and social media tips on Yala Tech.">
-    <meta property="og:image" content="https://shiqela.online/s.png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -171,27 +159,19 @@
         <!-- Bottom Navigation Menu -->
         <nav class="bottom-nav">
             <a id="nav-home" href="index.html" class="nav-item active">
-                <div class="icon-bg">
-                    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                </div>
+                <div class="icon-bg"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
                 <span>Home</span>
             </a>
             <a id="nav-jobs" href="s.html" class="nav-item">
-                <div class="icon-bg">
-                    <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-                </div>
+                <div class="icon-bg"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></div>
                 <span>Online Jobs</span>
             </a>
             <a id="nav-tech" href="in.html" class="nav-item">
-                <div class="icon-bg">
-                    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                </div>
+                <div class="icon-bg"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
                 <span>Tech</span>
             </a>
             <a id="nav-social" href="sm.html" class="nav-item">
-                <div class="icon-bg">
-                    <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-                </div>
+                <div class="icon-bg"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg></div>
                 <span>Social Media</span>
             </a>
         </nav>
@@ -223,16 +203,17 @@
         let currentActiveCategoryFilter = "Shikela Update";
         let hasTriggeredAppOpen = false;
         let isOpeningArticle = false;
-        let activeFeedNativeAdIds = []; // Track native ads in feed
+        let activeFeedNativeAdIds = []; 
 
         window.globalAdConfig = {};
 
-        // --- NATIVE BRIDGE DETECTION ---
+        // --- BULLETPROOF NATIVE BRIDGE DETECTION ---
         function getAdMobPlugin() {
-            return window.AdMobPlugin || null; // Provided by native-bridge.js
+            return window.AdMobPlugin || null; 
         }
         function isNativeApp() {
-            return window.Capacitor !== undefined && window.Capacitor.isNative === true;
+            // Evaluates TRUE inside APK, FALSE in web browser/editor
+            return typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNative === true;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -257,10 +238,10 @@
             const adId = window.globalAdConfig.nativeId || 'Loading...';
             return `
                 <div class="mock-test-ad-block" style="min-height: 150px; background: #fdfdfd;">
-                    <span class="mock-test-ad-label">AD</span>
+                    <span class="mock-test-ad-label">WEB MOCK AD</span>
                     <div style="font-size:24px; margin-top:10px;">💡</div>
                     <div class="mock-test-ad-title">${title}</div>
-                    <p class="mock-test-ad-desc">ID: ${adId}</p>
+                    <p class="mock-test-ad-desc">Real ad will load in APK using ID: ${adId}</p>
                     <button style="margin-top:10px; background:#2563eb; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:bold;">LEARN MORE</button>
                 </div>
             `;
@@ -301,7 +282,7 @@
             });
         }
 
-        // 1. App Open Ad on Start
+        // 1. App Open Ad
         async function triggerAppOpenAdStart() {
             if (hasTriggeredAppOpen) return; 
             if (window.globalAdConfig?.placements?.appOpenAdStart && window.globalAdConfig.appOpenId) {
@@ -309,14 +290,15 @@
                 const AdPlugin = getAdMobPlugin();
                 if (isNativeApp() && AdPlugin) {
                     try {
-                        if(AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: window.globalAdConfig.appOpenId });
+                        if(AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: window.globalAdConfig.appOpenId, isTesting: false });
                         if(AdPlugin.showAppOpenAd) await AdPlugin.showAppOpenAd();
-                    } catch (e) { console.error(e); }
+                    } catch (e) { console.error("App Open Ad Failed:", e); }
+                } else {
+                    console.log("Web Mock: App Open Ad triggered (Invisible in web).");
                 }
             }
         }
 
-        // 2. App Open Ad on Resume
         function setupAppResumeAdListener() {
             document.addEventListener("visibilitychange", async () => {
                 if (document.visibilityState === "visible") {
@@ -324,34 +306,42 @@
                         const AdPlugin = getAdMobPlugin();
                         if (isNativeApp() && AdPlugin) {
                             try {
-                                if(AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: window.globalAdConfig.appOpenId });
+                                if(AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: window.globalAdConfig.appOpenId, isTesting: false });
                                 if(AdPlugin.showAppOpenAd) await AdPlugin.showAppOpenAd();
-                            } catch (e) { console.error("App Resume Ad Error", e); }
+                            } catch (e) { console.error("Resume Ad Failed:", e); }
                         }
                     }
                 }
             });
         }
 
-        // 3. Banner Ad on Home Page
+        // 2. Banner Ad
         async function triggerBannerAdHomePage() {
             const adWrapper = document.getElementById('adContainerWrapper');
             if (window.globalAdConfig?.placements?.bannerAdHomePage && window.globalAdConfig.bannerId) {
                 const AdPlugin = getAdMobPlugin();
                 if (isNativeApp() && AdPlugin) {
                     try {
-                        await AdPlugin.showBanner({ adId: window.globalAdConfig.bannerId, adSize: 'BANNER', position: 'BOTTOM_CENTER', margin: 65 });
-                    } catch (e) { console.error(e); }
+                        // isTesting is false here to show REAL ADS in the generated APK
+                        await AdPlugin.showBanner({ 
+                            adId: window.globalAdConfig.bannerId, 
+                            adSize: 'BANNER', 
+                            position: 'BOTTOM_CENTER', 
+                            margin: 65,
+                            isTesting: false 
+                        });
+                    } catch (e) { console.error("Banner Ad Failed:", e); }
                 } else {
+                    // WEB MOCK
                     adWrapper.style.display = 'flex';
-                    document.getElementById('admobPreviewBanner').innerText = `Banner Ad Preview\nID: ${window.globalAdConfig.bannerId}`;
+                    document.getElementById('admobPreviewBanner').innerHTML = `Web Mock Banner Ad<br><span style="font-size:10px;">APK will use ID: ${window.globalAdConfig.bannerId}</span>`;
                 }
             } else {
                 adWrapper.style.display = 'none';
             }
         }
 
-        // 4. Interstitial Ad on Post Details (Wrapped around the open function)
+        // 3. Interstitial Ad
         async function showInterstitialAdMock(onAdClosedCallback) {
             const AdPlugin = getAdMobPlugin();
             if (window.globalAdConfig?.placements?.interstitialAdPostDetails && window.globalAdConfig.interstitialId) {
@@ -361,8 +351,9 @@
 
                 if (isNativeApp() && AdPlugin) {
                     try {
-                        if(AdPlugin.prepareInterstitial) await AdPlugin.prepareInterstitial({ adId: window.globalAdConfig.interstitialId });
-                        else if(AdPlugin.loadInterstitial) await AdPlugin.loadInterstitial({ adId: window.globalAdConfig.interstitialId });
+                        // isTesting: false to ensure real ads in APK
+                        if(AdPlugin.prepareInterstitial) await AdPlugin.prepareInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: false });
+                        else if(AdPlugin.loadInterstitial) await AdPlugin.loadInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: false });
                         
                         document.getElementById('customPopupModule').classList.remove('show-popup');
                         document.getElementById('closePopupBtn').style.display = 'block';
@@ -370,14 +361,17 @@
                         await AdPlugin.showInterstitial();
                         onAdClosedCallback();
                     } catch (e) {
+                        console.error("Interstitial Ad Failed:", e);
                         document.getElementById('customPopupModule').classList.remove('show-popup');
                         document.getElementById('closePopupBtn').style.display = 'block';
                         onAdClosedCallback(); 
                     }
                 } else {
+                    // WEB MOCK: Simply fake a loading delay
                     setTimeout(() => {
                         document.getElementById('customPopupModule').classList.remove('show-popup');
                         document.getElementById('closePopupBtn').style.display = 'block';
+                        console.log("Web Mock: Interstitial ad skipped. Continuing to article.");
                         onAdClosedCallback();
                     }, 800); 
                 }
@@ -484,7 +478,7 @@
         }
 
         // ==========================================
-        // FULL ARTICLE READER (Controls Article Ad Placements)
+        // 4. Native Ad on Post Details (Article)
         // ==========================================
         window.openFullNewsReader = function(itemId) {
             if (isOpeningArticle) return; 
@@ -504,7 +498,6 @@
             const readerBody = document.getElementById('fullNewsReaderBody');
             const AdPlugin = getAdMobPlugin();
             
-            // 5. Banner Ad on Post Details (Hide it if it's disabled for details view)
             if (isNativeApp() && AdPlugin) {
                 if (!window.globalAdConfig.placements.bannerAdPostDetails) {
                     if(AdPlugin.hideBanner) AdPlugin.hideBanner().catch(e => console.log(e));
@@ -534,7 +527,6 @@
             let redirectBtnHTML = targetRedirectUrl 
                 ? `<div style="margin-top:20px;"><a href="${targetRedirectUrl}" target="_blank" class="redirect-link-btn" style="width:100%; justify-content:center;"><span>${customActionLabel}</span></a></div>` : "";
 
-            // 6. Native Ad on Post Details
             const articleNativeAdId = 'article-native-ad';
             let articleNativeAdHtml = `<div id="${articleNativeAdId}" style="width:100%; min-height:20px; margin: 15px 0; background: transparent;"></div>`;
 
@@ -555,10 +547,12 @@
             if (window.globalAdConfig.placements.nativeAdPostDetails && window.globalAdConfig.nativeId) {
                 if (isNativeApp() && AdPlugin) {
                     setTimeout(() => {
-                        if(AdPlugin.showNativeAd) AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: articleNativeAdId }).catch(e=>console.log(e));
+                        if(AdPlugin.showNativeAd) {
+                            AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: articleNativeAdId, isTesting: false }).catch(e=>console.log(e));
+                        }
                     }, 350);
                 } else {
-                    document.getElementById(articleNativeAdId).innerHTML = getNativeAdHTML("In-Article Native Ad");
+                    document.getElementById(articleNativeAdId).innerHTML = getNativeAdHTML("In-Article Web Mock Ad");
                 }
             }
         }
@@ -571,12 +565,10 @@
                     
                     const AdPlugin = getAdMobPlugin();
                     
-                    // Remove Native Ad from article memory
                     if (isNativeApp() && AdPlugin && AdPlugin.hideNativeAd) {
                         AdPlugin.hideNativeAd({ elementId: 'article-native-ad' }).catch(e=>console.log(e));
                     }
 
-                    // Restore the Bottom Banner if it is enabled on Home Page
                     if (window.globalAdConfig.placements.bannerAdHomePage) {
                         if (isNativeApp() && AdPlugin) {
                             if(AdPlugin.resumeBanner) AdPlugin.resumeBanner().catch(e => console.log(e));
@@ -589,7 +581,7 @@
         }
 
         // ==========================================
-        // 7. Native Ad on Post List (Feed Injector)
+        // 5. Native Ad on Post List (Feed Injector)
         // ==========================================
         function clearActiveFeedAds() {
             const AdPlugin = getAdMobPlugin();
@@ -638,10 +630,13 @@
                             activeFeedNativeAdIds.push(adDivId);
                             nativeAdCard.style.minHeight = '250px';
                             setTimeout(() => {
-                                if(AdPlugin.showNativeAd) AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId }).catch(e=>console.log(e));
+                                if(AdPlugin.showNativeAd) {
+                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId, isTesting: false }).catch(e=>console.log(e));
+                                }
                             }, 350);
                         } else {
-                            nativeAdCard.innerHTML = getNativeAdHTML("In-Feed Native Ad");
+                            // WEB MOCK
+                            nativeAdCard.innerHTML = getNativeAdHTML("In-Feed Web Mock Ad");
                         }
                     }
                 }
@@ -649,7 +644,7 @@
         }
 
         // ==========================================
-        // SEARCH ENGINE (Also injects Native Ads into search list)
+        // SEARCH ENGINE 
         // ==========================================
         function setupSearchEngineControls() {
             const openBtn = document.getElementById('openSearchBtn');
@@ -706,7 +701,6 @@
                 
                 searchResultCount++;
 
-                // Inject Native Ads into Search Feed
                 if (searchResultCount % 2 === 0) {
                     if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig.nativeId) {
                         const adDivId = `native-search-ad-${searchResultCount}`;
@@ -717,23 +711,21 @@
                         resultsArea.appendChild(nativeAdCard);
                         
                         if (isNativeApp() && AdPlugin) {
-                            // Note: we don't track search ads in the main feed clear list, 
-                            // since the modal overlay hides the feed anyway.
                             nativeAdCard.style.minHeight = '250px';
                             setTimeout(() => {
-                                if(AdPlugin.showNativeAd) AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId }).catch(e=>console.log(e));
+                                if(AdPlugin.showNativeAd) {
+                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId, isTesting: false }).catch(e=>console.log(e));
+                                }
                             }, 350);
                         } else {
-                            nativeAdCard.innerHTML = getNativeAdHTML("Search Result Ad");
+                            // WEB MOCK
+                            nativeAdCard.innerHTML = getNativeAdHTML("Search Result Web Mock Ad");
                         }
                     }
                 }
             });
         }
 
-        // ==========================================
-        // UI Controls & Toggles
-        // ==========================================
         function bindVisualInterfaceControls() {
             document.querySelectorAll('.filter-btn').forEach(pill => {
                 pill.addEventListener('click', function() {
