@@ -87,7 +87,7 @@
 </head>
 <body style="padding-bottom: 60px;">
 
-    <!-- MANDATORY FOR NATIVE ADS IN APK: Uses your GitHub Actions generated bridge -->
+    <!-- MANDATORY FOR NATIVE ADS IN APK -->
     <script src="native-bridge.js"></script>
 
     <div class="app-view">
@@ -121,11 +121,9 @@
                     <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
-            <!-- The full article content will load here -->
             <div class="news-reader-content" id="fullNewsReaderBody"></div>
         </div>
 
-        <!-- SEARCH OVERLAY -->
         <div class="search-modal-overlay" id="searchModalOverlay">
             <div class="search-box-header">
                 <div class="search-input-wrapper">
@@ -282,9 +280,6 @@
             setupAppResumeAdListener();
         });
 
-        // ==========================================
-        // Helper to Generate Mock Ads for Web Editor
-        // ==========================================
         function getNativeAdHTML(title = "AdMob Native Placement") {
             const adId = window.globalAdConfig.nativeId || 'Loading...';
             return `
@@ -306,6 +301,7 @@
             onValue(adManagerRef, (snapshot) => {
                 if (snapshot.exists()) {
                     const adData = snapshot.val();
+                    
                     window.globalAdConfig = {
                         status: String(adData.adStatus).toUpperCase() === 'TRUE' || String(adData.adStatus).toUpperCase() === 'ON',
                         bannerId: adData.adMobBannerUnitId,
@@ -341,8 +337,8 @@
                 const AdPlugin = getAdMobPlugin();
                 if (isNativeApp() && AdPlugin) {
                     try {
-                        if(AdPlugin.loadAppOpenAd) await AdPlugin.loadAppOpenAd({ adId: window.globalAdConfig.appOpenId, isTesting: true });
-                        else if(AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: window.globalAdConfig.appOpenId, isTesting: true });
+                        if(AdPlugin.loadAppOpenAd) await AdPlugin.loadAppOpenAd({ adId: window.globalAdConfig.appOpenId });
+                        else if(AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: window.globalAdConfig.appOpenId });
                         
                         if(AdPlugin.showAppOpenAd) await AdPlugin.showAppOpenAd();
                         else if(AdPlugin.showAppOpen) await AdPlugin.showAppOpen();
@@ -360,8 +356,8 @@
                         const AdPlugin = getAdMobPlugin();
                         if (isNativeApp() && AdPlugin) {
                             try {
-                                if(AdPlugin.loadAppOpenAd) await AdPlugin.loadAppOpenAd({ adId: window.globalAdConfig.appOpenId, isTesting: true });
-                                else if(AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: window.globalAdConfig.appOpenId, isTesting: true });
+                                if(AdPlugin.loadAppOpenAd) await AdPlugin.loadAppOpenAd({ adId: window.globalAdConfig.appOpenId });
+                                else if(AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: window.globalAdConfig.appOpenId });
                                 
                                 if(AdPlugin.showAppOpenAd) await AdPlugin.showAppOpenAd();
                                 else if(AdPlugin.showAppOpen) await AdPlugin.showAppOpen();
@@ -383,12 +379,10 @@
                             adId: window.globalAdConfig.bannerId, 
                             adSize: 'BANNER', 
                             position: 'BOTTOM_CENTER', 
-                            margin: 65,
-                            isTesting: true 
+                            margin: 65
                         });
                     } catch (e) { console.error("Banner Ad Failed:", e); }
                 } else {
-                    // WEB MOCK
                     adWrapper.style.display = 'flex';
                     document.getElementById('admobPreviewBanner').innerHTML = `Web Mock Banner Ad<br><span style="font-size:10px;">APK will use ID: ${window.globalAdConfig.bannerId}</span>`;
                 }
@@ -403,16 +397,15 @@
 
             if (window.globalAdConfig?.placements?.interstitialAdPostDetails && window.globalAdConfig.interstitialId) {
                 if (isNativeApp() && AdPlugin) {
-                    // --- APK LOGIC (REAL ADMOB) ---
                     triggerUiPopup("⏳", "Loading Content", "Please wait while we prepare the article...");
                     document.getElementById('closePopupBtn').style.display = 'none';
 
                     (async () => {
                         try {
                             if (AdPlugin.loadInterstitial) {
-                                await AdPlugin.loadInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: true });
+                                await AdPlugin.loadInterstitial({ adId: window.globalAdConfig.interstitialId });
                             } else if (AdPlugin.prepareInterstitial) {
-                                await AdPlugin.prepareInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: true });
+                                await AdPlugin.prepareInterstitial({ adId: window.globalAdConfig.interstitialId });
                             }
 
                             document.getElementById('customPopupModule').classList.remove('show-popup');
@@ -428,7 +421,6 @@
                         }
                     })();
                 } else {
-                    // --- WEB EDITOR LOGIC (VISUAL MOCK POPUP) ---
                     const mockModal = document.getElementById('mockInterstitialModal');
                     const idLabel = document.getElementById('mockInterstitialIdText');
                     const closeBtn = document.getElementById('closeMockInterstitialBtn');
@@ -441,7 +433,7 @@
                         if (mockModal) mockModal.classList.remove('active');
                         closeBtn.removeEventListener('click', dismissMockAd);
                         continueBtn.removeEventListener('click', dismissMockAd);
-                        onAdClosedCallback(); // Opens the article
+                        onAdClosedCallback(); 
                     };
 
                     closeBtn.addEventListener('click', dismissMockAd);
@@ -601,6 +593,7 @@
                 ? `<div style="margin-top:20px;"><a href="${targetRedirectUrl}" target="_blank" class="redirect-link-btn" style="width:100%; justify-content:center;"><span>${customActionLabel}</span></a></div>` : "";
 
             const articleNativeAdId = 'article-native-ad';
+            // Added transparent background to let overlay ads bleed through if needed
             let articleNativeAdHtml = `<div id="${articleNativeAdId}" style="width:100%; min-height:20px; margin: 15px 0; background: transparent;"></div>`;
 
             readerBody.innerHTML = `
@@ -616,12 +609,11 @@
             `;
             readerOverlay.classList.add('active-reader');
 
-            // Inject the Native Ad inside the article
             if (window.globalAdConfig.placements.nativeAdPostDetails && window.globalAdConfig.nativeId) {
                 if (isNativeApp() && AdPlugin) {
                     setTimeout(() => {
                         if(AdPlugin.showNativeAd) {
-                            AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: articleNativeAdId, isTesting: true }).catch(e=>console.log(e));
+                            AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: articleNativeAdId }).catch(e=>console.log(e));
                         }
                     }, 350);
                 } else {
@@ -689,7 +681,6 @@
                 
                 currentPostCount++;
 
-                // Inject Native Ad on Post List every 2 items
                 if (currentPostCount % 2 === 0) {
                     if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig.nativeId) {
                         const adDivId = `native-feed-ad-${currentPostCount}`;
@@ -697,6 +688,7 @@
                         nativeAdCard.id = adDivId;
                         nativeAdCard.style.width = '100%';
                         nativeAdCard.style.marginBottom = '15px';
+                        nativeAdCard.style.background = 'transparent'; // Essential for Native UI Overlay
                         container.appendChild(nativeAdCard);
                         
                         if (isNativeApp() && AdPlugin) {
@@ -704,11 +696,10 @@
                             nativeAdCard.style.minHeight = '250px';
                             setTimeout(() => {
                                 if(AdPlugin.showNativeAd) {
-                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId, isTesting: true }).catch(e=>console.log(e));
+                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId }).catch(e=>console.log(e));
                                 }
                             }, 350);
                         } else {
-                            // WEB MOCK
                             nativeAdCard.innerHTML = getNativeAdHTML("In-Feed Web Mock Ad");
                         }
                     }
@@ -781,17 +772,17 @@
                         nativeAdCard.id = adDivId;
                         nativeAdCard.style.width = '100%';
                         nativeAdCard.style.marginBottom = '15px';
+                        nativeAdCard.style.background = 'transparent';
                         resultsArea.appendChild(nativeAdCard);
                         
                         if (isNativeApp() && AdPlugin) {
                             nativeAdCard.style.minHeight = '250px';
                             setTimeout(() => {
                                 if(AdPlugin.showNativeAd) {
-                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId, isTesting: true }).catch(e=>console.log(e));
+                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId }).catch(e=>console.log(e));
                                 }
                             }, 350);
                         } else {
-                            // WEB MOCK
                             nativeAdCard.innerHTML = getNativeAdHTML("Search Result Web Mock Ad");
                         }
                     }
