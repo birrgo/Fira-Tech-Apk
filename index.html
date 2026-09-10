@@ -5,9 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- Primary Page Metadata -->
-    <title>Yala Tech | Online Work in Ethiopia, Tech Tips & Vacancies</title>
-    <meta name="title" content="Shiqela | Online Work in Ethiopia, Tech Tips & Vacancies">
-    <meta name="description" content="Shiqela is your primary platform for online work in Ethiopia, tech tips, digital skills, remote work strategies, and the latest online vacancy updates.">
+    <title>Fira Tech | App Updates, Tech Tips & Digital Skills</title>
+    <meta name="title" content="Fira Tech | App Updates, Tech Tips & Digital Skills">
+    <meta name="description" content="Fira Tech is your primary platform for the latest app updates, tech tips, digital skills, remote work strategies, and online vacancies.">
+    <meta name="keywords" content="fira tech, online work in ethiopia, tech tips, online vacancy, remote jobs ethiopia, ethiopian tech, digital skills">
+    <meta name="author" content="Fira Tech">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://firatech.online/">
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://firatech.online/">
+    <meta property="og:site_name" content="Fira Tech">
+    <meta property="og:title" content="Fira Tech - Home & Latest Updates">
+    <meta property="og:description" content="Stay updated with the latest news, tech updates, online jobs, and social media tips on Fira Tech.">
+    <meta property="og:image" content="https://firatech.online/s.png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -152,8 +164,8 @@
 
         <main class="app-content" id="mainContentArea">
             <div class="category-filter-row filter-btn-grid" id="filterPillsRow">
-                <button class="filter-pill filter-btn active-pill active" data-filter="Shikela Update" data-category="Shikela Update">Yala Tech Update</button>
-                <button class="filter-pill filter-btn" data-filter="Shikela Tips" data-category="Shikela Tips">Yala Tech Tips</button>
+                <button class="filter-pill filter-btn active-pill active" data-filter="Fira Tech Update" data-category="Fira Tech Update">Fira Tech Update</button>
+                <button class="filter-pill filter-btn" data-filter="Fira Tech Tips" data-category="Fira Tech Tips">Fira Tech Tips</button>
             </div>
 
             <div class="broadcasts-container" id="broadcastsContainer">
@@ -163,7 +175,7 @@
             </div>
 
             <footer class="verified-footer-shield">
-                <span class="footer-shield-text">Yala Tech Matrix Verified</span>
+                <span class="footer-shield-text">Fira Tech Matrix Verified</span>
             </footer>
         </main>
 
@@ -231,27 +243,24 @@
         let rawShikelaNewsData = {};
         let rawNewNewsData = {};
         let localCachedBroadcasts = [];
-        let currentActiveCategoryFilter = "Shikela Update";
+        let currentActiveCategoryFilter = "Fira Tech Update";
         let hasTriggeredAppOpen = false;
         let isOpeningArticle = false;
         let activeFeedNativeAdIds = []; 
 
         window.globalAdConfig = {};
 
-        // --- NATIVE BRIDGE DETECTION (UPDATED FOR CAPACITOR V6) ---
+        // --- NATIVE BRIDGE DETECTION ---
         function getAdMobPlugin() {
             return window.AdMobPlugin || null; 
         }
         function isNativeApp() {
-            // Check if Capacitor object is loaded
             if (typeof window === 'undefined' || !window.Capacitor) {
                 return false;
             }
-            // Use the correct API for modern Capacitor (v3, v4, v5, v6)
             if (typeof window.Capacitor.isNativePlatform === 'function') {
                 return window.Capacitor.isNativePlatform();
             }
-            // Fallback API check
             if (typeof window.Capacitor.getPlatform === 'function') {
                 return window.Capacitor.getPlatform() === 'android' || window.Capacitor.getPlatform() === 'ios';
             }
@@ -332,8 +341,11 @@
                 const AdPlugin = getAdMobPlugin();
                 if (isNativeApp() && AdPlugin) {
                     try {
-                        if(AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: window.globalAdConfig.appOpenId, isTesting: false });
+                        if(AdPlugin.loadAppOpenAd) await AdPlugin.loadAppOpenAd({ adId: window.globalAdConfig.appOpenId, isTesting: true });
+                        else if(AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: window.globalAdConfig.appOpenId, isTesting: true });
+                        
                         if(AdPlugin.showAppOpenAd) await AdPlugin.showAppOpenAd();
+                        else if(AdPlugin.showAppOpen) await AdPlugin.showAppOpen();
                     } catch (e) { console.error("App Open Ad Failed:", e); }
                 } else {
                     console.log("Web Mock: App Open Ad triggered (Invisible in web).");
@@ -348,8 +360,11 @@
                         const AdPlugin = getAdMobPlugin();
                         if (isNativeApp() && AdPlugin) {
                             try {
-                                if(AdPlugin.prepareAppOpenAd) await AdPlugin.prepareAppOpenAd({ adId: window.globalAdConfig.appOpenId, isTesting: false });
+                                if(AdPlugin.loadAppOpenAd) await AdPlugin.loadAppOpenAd({ adId: window.globalAdConfig.appOpenId, isTesting: true });
+                                else if(AdPlugin.loadAppOpen) await AdPlugin.loadAppOpen({ adId: window.globalAdConfig.appOpenId, isTesting: true });
+                                
                                 if(AdPlugin.showAppOpenAd) await AdPlugin.showAppOpenAd();
+                                else if(AdPlugin.showAppOpen) await AdPlugin.showAppOpen();
                             } catch (e) { console.error("Resume Ad Failed:", e); }
                         }
                     }
@@ -364,13 +379,12 @@
                 const AdPlugin = getAdMobPlugin();
                 if (isNativeApp() && AdPlugin) {
                     try {
-                        // isTesting is false here to show REAL ADS in the generated APK
                         await AdPlugin.showBanner({ 
                             adId: window.globalAdConfig.bannerId, 
                             adSize: 'BANNER', 
                             position: 'BOTTOM_CENTER', 
                             margin: 65,
-                            isTesting: false 
+                            isTesting: true 
                         });
                     } catch (e) { console.error("Banner Ad Failed:", e); }
                 } else {
@@ -383,7 +397,7 @@
             }
         }
 
-        // 3. Interstitial Ad (UPDATED WITH VISUAL MOCK)
+        // 3. Interstitial Ad 
         function showInterstitialAdMock(onAdClosedCallback) {
             const AdPlugin = getAdMobPlugin();
 
@@ -395,10 +409,10 @@
 
                     (async () => {
                         try {
-                            if (AdPlugin.prepareInterstitial) {
-                                await AdPlugin.prepareInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: false });
-                            } else if (AdPlugin.loadInterstitial) {
-                                await AdPlugin.loadInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: false });
+                            if (AdPlugin.loadInterstitial) {
+                                await AdPlugin.loadInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: true });
+                            } else if (AdPlugin.prepareInterstitial) {
+                                await AdPlugin.prepareInterstitial({ adId: window.globalAdConfig.interstitialId, isTesting: true });
                             }
 
                             document.getElementById('customPopupModule').classList.remove('show-popup');
@@ -481,17 +495,19 @@
                 Object.keys(dataObj).forEach(key => {
                     const item = dataObj[key];
                     if (typeof item === 'object' && item !== null) {
+                        let resolvedCategory = (item.category || defaultCat).replace(/Shikela/gi, 'Fira Tech');
+                        
                         localCachedBroadcasts.push({
                             id: key, ...item,
-                            title: item.title || item.newsTitle || defaultCat,
-                            category: item.category || defaultCat,
+                            title: item.title || item.newsTitle || resolvedCategory,
+                            category: resolvedCategory,
                             resolvedTimestamp: extractValidTimestamp(item)
                         });
                     }
                 });
             };
-            addNode(rawShikelaNewsData, "Shikela Update");
-            addNode(rawNewNewsData, "Shikela Tips");
+            addNode(rawShikelaNewsData, "Fira Tech Update");
+            addNode(rawNewNewsData, "Fira Tech Tips");
             localCachedBroadcasts.sort((a, b) => b.resolvedTimestamp - a.resolvedTimestamp);
             renderFilteredBroadcasts();
         }
@@ -508,15 +524,14 @@
         }
 
         function buildSingleNewsCardHTML(item) {
-            const headline = item.title || item.newsTitle || "Yala Tech Update";
+            const headline = item.title || item.newsTitle || "Fira Tech Update";
             const fullContent = item.content || item.message || "";
-            const displayCategory = (item.category || "Yala Tech Update").replace('Shikela', 'Yala Tech'); 
-            const category = item.category || "Shikela Update";
+            const displayCategory = item.category || "Fira Tech Update"; 
             const imageUrl = item.imageUrl || item.image || "";
 
             const previewContent = fullContent.length > 120 ? fullContent.substring(0, 120).trim() + "..." : fullContent;
             const numericalTime = item.resolvedTimestamp || Date.now();
-            const pillBadgeClass = category.toLowerCase().includes("tips") ? "spotlight-pill system-badge" : "spotlight-pill";
+            const pillBadgeClass = displayCategory.toLowerCase().includes("tips") ? "spotlight-pill system-badge" : "spotlight-pill";
 
             let imageHTML = imageUrl ? `<div class="broadcast-image-frame" onclick="openFullNewsReader('${item.id}')"><img src="${imageUrl}" onload="this.classList.add('loaded')"></div>` : "";
 
@@ -568,12 +583,12 @@
 
             const headline = item.title || item.newsTitle;
             const fullContent = item.content || item.message || "";
-            const displayCategory = (item.category || "").replace('Shikela', 'Yala Tech');
+            const displayCategory = item.category || "Fira Tech";
             const imageUrl = item.imageUrl || item.image || "";
             const videoUrl = item.videoUrl || item.youtubeUrl || item.youtubeId || item.video || "";
             const targetRedirectUrl = item.link || item.redirectUrl || item.url || item.targetUrl || "";
             const customActionLabel = item.actionButtonLabel || item.actionLabel || "Visit External Source / Link";
-            const pillBadgeClass = (item.category || "").toLowerCase().includes("tips") ? "spotlight-pill system-badge" : "spotlight-pill";
+            const pillBadgeClass = displayCategory.toLowerCase().includes("tips") ? "spotlight-pill system-badge" : "spotlight-pill";
 
             let imageHTML = (imageUrl && Boolean(item.duplicateCoverInArticle ?? true)) 
                 ? `<div class="reader-image-frame"><img src="${imageUrl.trim()}" alt="${headline}"></div>` : "";
@@ -606,7 +621,7 @@
                 if (isNativeApp() && AdPlugin) {
                     setTimeout(() => {
                         if(AdPlugin.showNativeAd) {
-                            AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: articleNativeAdId, isTesting: false }).catch(e=>console.log(e));
+                            AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: articleNativeAdId, isTesting: true }).catch(e=>console.log(e));
                         }
                     }, 350);
                 } else {
@@ -689,7 +704,7 @@
                             nativeAdCard.style.minHeight = '250px';
                             setTimeout(() => {
                                 if(AdPlugin.showNativeAd) {
-                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId, isTesting: false }).catch(e=>console.log(e));
+                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId, isTesting: true }).catch(e=>console.log(e));
                                 }
                             }, 350);
                         } else {
@@ -772,7 +787,7 @@
                             nativeAdCard.style.minHeight = '250px';
                             setTimeout(() => {
                                 if(AdPlugin.showNativeAd) {
-                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId, isTesting: false }).catch(e=>console.log(e));
+                                    AdPlugin.showNativeAd({ adId: window.globalAdConfig.nativeId, elementId: adDivId, isTesting: true }).catch(e=>console.log(e));
                                 }
                             }, 350);
                         } else {
@@ -789,7 +804,7 @@
                 pill.addEventListener('click', function() {
                     document.querySelectorAll('.filter-btn').forEach(p => p.classList.remove('active-pill', 'active'));
                     this.classList.add('active-pill', 'active');
-                    currentActiveCategoryFilter = this.getAttribute('data-filter') || "Shikela Update";
+                    currentActiveCategoryFilter = this.getAttribute('data-filter') || "Fira Tech Update";
                     renderFilteredBroadcasts();
                 });
             });
