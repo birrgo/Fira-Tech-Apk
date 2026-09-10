@@ -26,7 +26,8 @@ jobs:
       - name: Install Node Dependencies & Esbuild
         run: |
           npm init -y
-          npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5 @capacitor/splash-screen@5 capacitor-admob-nextgen esbuild
+          # Upgraded to Capacitor 6 to resolve the AdMob NextGen dependency conflict
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/splash-screen@6 capacitor-admob-nextgen esbuild
 
       - name: Configure NextGen Ads & Sync Hooks in package.json
         run: |
