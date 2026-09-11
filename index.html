@@ -337,7 +337,11 @@
                     if (!bannerCreated) {
                         await AdPlugin.createBanner({ 
                             adUnitId: window.globalAdConfig.bannerId, 
-                            isAutoShow: true, position: 'BOTTOM', adSize: 'BANNER', isOverlap: true
+                            isAutoShow: true, 
+                            position: 'BOTTOM', 
+                            adSize: 'BANNER', 
+                            isOverlap: true,
+                            margin: 60 // MOVES THE BANNER UP 60px TO PREVENT BOTTOM NAV OVERLAP
                         });
                         bannerCreated = true;
                     } else if (AdPlugin.showBanner) { await AdPlugin.showBanner(); }
@@ -391,27 +395,56 @@
             }
         }
 
+        // TOUCHMOVE ADDED TO TRACK SCROLL DRAGGING SMOOTHLY
         function setupScrollRepositioning() {
             let ticking = false;
             const updateAds = () => {
                 if (!ticking) {
-                    window.requestAnimationFrame(() => { updateAllNativeAdsPositions(); ticking = false; });
+                    window.requestAnimationFrame(() => { 
+                        updateAllNativeAdsPositions(); 
+                        ticking = false; 
+                    });
                     ticking = true;
                 }
             };
             window.addEventListener('scroll', updateAds, { passive: true });
+            window.addEventListener('touchmove', updateAds, { passive: true }); 
+            window.addEventListener('resize', updateAds, { passive: true });
         }
 
         function updateAllNativeAdsPositions() {
             const AdPlugin = getAdMobPlugin();
             if (!isNativeApp() || !AdPlugin || !AdPlugin.showNativeAd) return;
+            
             const adElements = document.querySelectorAll('.native-ad-placeholder');
+            const headerHeight = 60; // Approximate top header height to hide behind
+            const bottomNavHeight = 60; // Bottom menu height
+            const bannerHeight = window.globalAdConfig?.placements?.bannerAdHomePage ? 60 : 0;
+            
             adElements.forEach(el => {
-                if (el.offsetParent === null) return; 
+                // If element doesn't exist on screen anymore, hide the ad
+                if (el.offsetParent === null) {
+                    if (AdPlugin.hideNativeAd) AdPlugin.hideNativeAd({ adId: el.id }).catch(()=>{});
+                    return; 
+                } 
+                
                 const rect = el.getBoundingClientRect();
-                const bannerHeight = window.globalAdConfig?.placements?.bannerAdHomePage ? 60 : 0;
-                if (rect.bottom > 0 && rect.top < (window.innerHeight - bannerHeight)) {
-                    AdPlugin.showNativeAd({ adId: el.id, adUnitId: window.globalAdConfig.nativeId, template: "small", x: rect.left, y: rect.top, width: rect.width, height: 120 }).catch(() => {});
+                const safeBottomLimit = window.innerHeight - bottomNavHeight - bannerHeight;
+                
+                // Only show ad if it is within the safe viewing bounds (below header, above bottom menu)
+                if (rect.bottom > headerHeight && rect.top < safeBottomLimit) {
+                    AdPlugin.showNativeAd({ 
+                        adId: el.id, 
+                        adUnitId: window.globalAdConfig.nativeId, 
+                        template: "small", 
+                        x: rect.left, 
+                        y: rect.top, 
+                        width: rect.width, 
+                        height: 120 
+                    }).catch(() => {});
+                } else {
+                    // Hide ad natively if it scrolls underneath top/bottom bars to prevent overlapping
+                    if (AdPlugin.hideNativeAd) AdPlugin.hideNativeAd({ adId: el.id }).catch(()=>{});
                 }
             });
         }
@@ -503,7 +536,6 @@
             `;
         }
 
-        // Modified: Triggers interstitial, then hides banner and navigates to full.html
         window.openFullNewsReader = function(itemId) {
             if (isOpeningArticle) return; 
             isOpeningArticle = true;
@@ -551,7 +583,6 @@
                 currentPostCount++;
 
                 if (currentPostCount % 2 === 0) {
-                    // Referencing 'Native Ad on Post List' from 45724.jpg
                     if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId) {
                         const adDivId = `native-feed-ad-${currentPostCount}`;
                         const nativeAdCard = document.createElement('div');
