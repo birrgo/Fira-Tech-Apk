@@ -63,14 +63,15 @@
             font-size: 16px; font-weight: bold; cursor: pointer; color: #333;
         }
 
-        /* STRICT CSS FOR NATIVE ADS TO PREVENT OVERLAP */
+        /* EXACT HTML RESERVATION FOR THE NATIVE AD */
         .native-ad-placeholder {
             display: block;
             width: 100%;
             height: 145px;
-            margin-bottom: 20px;
+            margin: 15px 0;
             background: transparent;
             position: relative;
+            overflow: hidden;
             z-index: 1; 
         }
     </style>
@@ -225,6 +226,7 @@
         let bannerCreated = false;
 
         window.globalAdConfig = {};
+        window.activeNativeAds = new Map(); 
 
         function getAdMobPlugin() { return window.AdMobPlugin || null; }
         function isNativeApp() {
@@ -238,6 +240,7 @@
             streamLiveAdminUpdatesLog();
             bindVisualInterfaceControls();
             setupSearchEngineControls();
+            initiateScrollSync(); // Boot the manual native coordinate sync
 
             const closeBtn = document.getElementById('closePopupBtn');
             if (closeBtn) closeBtn.addEventListener('click', () => {
@@ -250,7 +253,7 @@
         function getNativeAdHTML(title = "AdMob Native Placement") {
             const adId = window.globalAdConfig?.nativeId || 'Loading...';
             return `
-                <div class="mock-test-ad-block">
+                <div class="mock-test-ad-block" style="min-height: 145px; background: #fdfdfd;">
                     <span class="mock-test-ad-label">WEB MOCK AD</span>
                     <div style="font-size:24px; margin-top:10px;">💡</div>
                     <div class="mock-test-ad-title">${title}</div>
@@ -349,7 +352,8 @@
                             isAutoShow: true, 
                             position: 'BOTTOM', 
                             adSize: 'BANNER', 
-                            isOverlapping: false // Forces WebView to push up, preventing bottom nav overlap natively
+                            isOverlapping: false, // Ensures banner pushes content up correctly natively
+                            margin: 60
                         });
                         bannerCreated = true;
                     } else if (AdPlugin.showBanner) { await AdPlugin.showBanner(); }
@@ -401,6 +405,57 @@
             } else {
                 onAdClosedCallback();
             }
+        }
+
+        // --- NATIVE SCROLL SYNC LOGIC ---
+        // Continuously maps the Android native view to the moving HTML <div> coordinates
+        function initiateScrollSync() {
+            let ticking = false;
+            window.addEventListener('scroll', () => {
+                if (!ticking) {
+                    window.requestAnimationFrame(() => {
+                        updateNativeAdPositions();
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            }, { passive: true });
+            
+            // Also sync periodically in case DOM repaints alter the box height
+            setInterval(updateNativeAdPositions, 1000); 
+        }
+
+        function updateNativeAdPositions() {
+            const AdPlugin = getAdMobPlugin();
+            if (!isNativeApp() || !AdPlugin || !AdPlugin.showNativeAd) return;
+
+            const headerHeight = 60;
+            const bottomSpace = 60; 
+
+            document.querySelectorAll('.native-ad-placeholder').forEach(el => {
+                const rect = el.getBoundingClientRect();
+                const isVisible = (rect.bottom > headerHeight && rect.top < (window.innerHeight - bottomSpace));
+
+                if (isVisible) {
+                    // Update Android view to match exact HTML placeholder position
+                    AdPlugin.showNativeAd({
+                        adId: el.id,
+                        adUnitId: window.globalAdConfig.nativeId,
+                        template: "small",
+                        x: rect.left,
+                        y: rect.top,
+                        width: rect.width,
+                        height: rect.height
+                    }).catch(() => {});
+                    window.activeNativeAds.set(el.id, true);
+                } else {
+                    // Hide when off-screen to save memory
+                    if (window.activeNativeAds.has(el.id)) {
+                        AdPlugin.hideNativeAd({ adId: el.id }).catch(() => {});
+                        window.activeNativeAds.delete(el.id);
+                    }
+                }
+            });
         }
 
         function initiateLiveInterfaceClocks() {
@@ -506,15 +561,14 @@
             });
         };
 
-        // Clear all active native ads when leaving feed to free resources
         async function clearActiveFeedAds() {
             const AdPlugin = getAdMobPlugin();
             if (isNativeApp() && AdPlugin && AdPlugin.hideNativeAd) {
-                const ads = document.querySelectorAll('.native-ad-placeholder');
-                for (let ad of ads) {
-                    await AdPlugin.hideNativeAd({ adId: ad.id }).catch(e=>console.log(e));
+                for (let adId of window.activeNativeAds.keys()) {
+                    await AdPlugin.hideNativeAd({ adId: adId }).catch(e=>console.log(e));
                 }
             }
+            window.activeNativeAds.clear();
         }
 
         function renderFilteredBroadcasts() {
@@ -522,7 +576,7 @@
             if (!container) return;
             clearActiveFeedAds();
             container.innerHTML = "";
-
+            
             const filtered = localCachedBroadcasts.filter(item => (item.category || "").trim().toLowerCase() === currentActiveCategoryFilter.trim().toLowerCase());
             if (filtered.length === 0) {
                 container.innerHTML = `<article class="featured-broadcast-card"><h2 class="broadcast-title">No updates posted today.</h2></article>`;
@@ -539,6 +593,7 @@
                 container.appendChild(card);
                 currentPostCount++;
 
+                // Generates the strict placeholder block every 2 posts
                 if (currentPostCount % 2 === 0) {
                     if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId) {
                         const adDivId = `native-feed-ad-${currentPostCount}`;
@@ -553,26 +608,10 @@
                     }
                 }
             });
-
-            // Initialize Native Ads ONCE layout is finished. No scroll JS required!
+            
+            // Initial positioning flush after DOM renders
             if (isNativeApp() && AdPlugin) {
-                setTimeout(() => {
-                    const placeholders = document.querySelectorAll('.native-ad-placeholder');
-                    placeholders.forEach(el => {
-                        const rect = el.getBoundingClientRect();
-                        AdPlugin.showNativeAd({
-                            adId: el.id,
-                            viewId: el.id,       // Let Native iOS/Android SDK auto-track scroll
-                            elementId: el.id,    
-                            adUnitId: window.globalAdConfig.nativeId,
-                            template: "small",
-                            x: rect.left,        // Provided explicitly to prevent the ad sticking at top 0,0
-                            y: rect.top,
-                            width: rect.width,
-                            height: 145
-                        }).catch(e => console.log("Native Ad Init Error", e));
-                    });
-                }, 400); // 400ms allows DOM to settle and images to begin parsing
+                setTimeout(updateNativeAdPositions, 200);
             }
         }
 
@@ -635,31 +674,16 @@
                         nativeAdCard.id = adDivId;
                         nativeAdCard.className = 'native-ad-placeholder';
                         resultsArea.appendChild(nativeAdCard);
+                        
                         if (!isNativeApp() || !AdPlugin) {
                             nativeAdCard.innerHTML = getNativeAdHTML("Search Result Web Mock Ad");
                         }
                     }
                 }
             });
-            
-            if (isNativeApp() && AdPlugin) { 
-                setTimeout(() => {
-                    const placeholders = resultsArea.querySelectorAll('.native-ad-placeholder');
-                    placeholders.forEach(el => {
-                        const rect = el.getBoundingClientRect();
-                        AdPlugin.showNativeAd({
-                            adId: el.id,
-                            viewId: el.id,       
-                            elementId: el.id,
-                            adUnitId: window.globalAdConfig.nativeId,
-                            template: "small",
-                            x: rect.left,
-                            y: rect.top,
-                            width: rect.width,
-                            height: 145
-                        }).catch(()=>{});
-                    });
-                }, 400); 
+
+            if (isNativeApp() && AdPlugin) {
+                setTimeout(updateNativeAdPositions, 200);
             }
         }
 
