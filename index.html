@@ -214,6 +214,9 @@
         let bannerCreated = false;
 
         window.globalAdConfig = {};
+        
+        // ADDED: Tracker to prevent ad spam (fixes the multiple validator popups issue)
+        window.activeNativeAds = new Set(); 
 
         function getAdMobPlugin() { return window.AdMobPlugin || null; }
         function isNativeApp() {
@@ -240,7 +243,7 @@
         function getNativeAdHTML(title = "AdMob Native Placement") {
             const adId = window.globalAdConfig?.nativeId || 'Loading...';
             return `
-                <div class="mock-test-ad-block" style="min-height: 120px; background: #fdfdfd;">
+                <div class="mock-test-ad-block" style="min-height: 145px; background: #fdfdfd;">
                     <span class="mock-test-ad-label">WEB MOCK AD</span>
                     <div style="font-size:24px; margin-top:10px;">💡</div>
                     <div class="mock-test-ad-title">${title}</div>
@@ -322,7 +325,6 @@
 
         async function triggerBannerAdHomePage() {
             const adWrapper = document.getElementById('adContainerWrapper');
-            // Referencing 'Banner Ad on Home Page' from 45724.jpg
             if (!window.globalAdConfig?.placements?.bannerAdHomePage || !window.globalAdConfig?.bannerId) {
                 if (isNativeApp()) {
                     const AdPlugin = getAdMobPlugin();
@@ -341,7 +343,7 @@
                             position: 'BOTTOM', 
                             adSize: 'BANNER', 
                             isOverlap: true,
-                            margin: 60 // MOVES THE BANNER UP 60px TO PREVENT BOTTOM NAV OVERLAP
+                            margin: 85 // INCREASED TO 85px to strictly push the banner above the bottom menu
                         });
                         bannerCreated = true;
                     } else if (AdPlugin.showBanner) { await AdPlugin.showBanner(); }
@@ -395,7 +397,6 @@
             }
         }
 
-        // TOUCHMOVE ADDED TO TRACK SCROLL DRAGGING SMOOTHLY
         function setupScrollRepositioning() {
             let ticking = false;
             const updateAds = () => {
@@ -417,34 +418,47 @@
             if (!isNativeApp() || !AdPlugin || !AdPlugin.showNativeAd) return;
             
             const adElements = document.querySelectorAll('.native-ad-placeholder');
-            const headerHeight = 60; // Approximate top header height to hide behind
-            const bottomNavHeight = 60; // Bottom menu height
+            const headerHeight = 60; 
+            const bottomNavHeight = 60; 
             const bannerHeight = window.globalAdConfig?.placements?.bannerAdHomePage ? 60 : 0;
             
             adElements.forEach(el => {
-                // If element doesn't exist on screen anymore, hide the ad
+                const adId = el.id;
+
                 if (el.offsetParent === null) {
-                    if (AdPlugin.hideNativeAd) AdPlugin.hideNativeAd({ adId: el.id }).catch(()=>{});
+                    if (window.activeNativeAds.has(adId)) {
+                        if (AdPlugin.hideNativeAd) AdPlugin.hideNativeAd({ adId: adId }).catch(()=>{});
+                        window.activeNativeAds.delete(adId);
+                    }
                     return; 
                 } 
                 
                 const rect = el.getBoundingClientRect();
                 const safeBottomLimit = window.innerHeight - bottomNavHeight - bannerHeight;
                 
-                // Only show ad if it is within the safe viewing bounds (below header, above bottom menu)
-                if (rect.bottom > headerHeight && rect.top < safeBottomLimit) {
-                    AdPlugin.showNativeAd({ 
-                        adId: el.id, 
-                        adUnitId: window.globalAdConfig.nativeId, 
-                        template: "small", 
-                        x: rect.left, 
-                        y: rect.top, 
-                        width: rect.width, 
-                        height: 120 
-                    }).catch(() => {});
+                // Visible threshold checking
+                const isVisible = rect.bottom > headerHeight && rect.top < safeBottomLimit;
+                
+                if (isVisible) {
+                    // FIX: ONLY call showNativeAd ONCE when it becomes visible. This stops the text popups bug.
+                    if (!window.activeNativeAds.has(adId)) {
+                        window.activeNativeAds.add(adId);
+                        AdPlugin.showNativeAd({ 
+                            adId: adId, 
+                            adUnitId: window.globalAdConfig.nativeId, 
+                            template: "small",
+                            // Pass element reference so the plugin natively scrolls it
+                            elementId: adId,
+                            viewId: adId,
+                            width: rect.width,
+                            height: 145 
+                        }).catch(() => { window.activeNativeAds.delete(adId); });
+                    }
                 } else {
-                    // Hide ad natively if it scrolls underneath top/bottom bars to prevent overlapping
-                    if (AdPlugin.hideNativeAd) AdPlugin.hideNativeAd({ adId: el.id }).catch(()=>{});
+                    if (window.activeNativeAds.has(adId)) {
+                        window.activeNativeAds.delete(adId);
+                        if (AdPlugin.hideNativeAd) AdPlugin.hideNativeAd({ adId: adId }).catch(()=>{});
+                    }
                 }
             });
         }
@@ -545,9 +559,8 @@
                 if (isNativeApp() && AdPlugin && AdPlugin.hideBanner) {
                     await AdPlugin.hideBanner().catch(e => console.log(e));
                 }
-                if (isNativeApp() && AdPlugin && AdPlugin.hideNativeAd) {
-                     await AdPlugin.hideNativeAd().catch(e => console.log(e));
-                }
+                clearActiveFeedAds(); // Ensure all ads reset when navigating away
+                
                 window.location.href = `full.html?id=${itemId}`;
                 isOpeningArticle = false; 
             });
@@ -556,8 +569,12 @@
         async function clearActiveFeedAds() {
             const AdPlugin = getAdMobPlugin();
             if (isNativeApp() && AdPlugin && AdPlugin.hideNativeAd) {
-                await AdPlugin.hideNativeAd().catch(e=>console.log(e));
+                // Ensure tracked ads are hidden
+                for (let adId of window.activeNativeAds) {
+                    await AdPlugin.hideNativeAd({ adId: adId }).catch(e=>console.log(e));
+                }
             }
+            window.activeNativeAds.clear(); // Reset tracking
         }
 
         function renderFilteredBroadcasts() {
@@ -589,8 +606,9 @@
                         nativeAdCard.id = adDivId;
                         nativeAdCard.className = 'native-ad-placeholder'; 
                         nativeAdCard.style.width = '100%';
-                        nativeAdCard.style.height = '120px';
-                        nativeAdCard.style.marginBottom = '15px';
+                        // FIX: INCREASED HEIGHT so it doesn't overlap the post below it
+                        nativeAdCard.style.height = '145px'; 
+                        nativeAdCard.style.marginBottom = '20px';
                         nativeAdCard.style.background = 'transparent';
                         container.appendChild(nativeAdCard);
                         
@@ -664,8 +682,9 @@
                         nativeAdCard.id = adDivId;
                         nativeAdCard.className = 'native-ad-placeholder';
                         nativeAdCard.style.width = '100%';
-                        nativeAdCard.style.height = '120px';
-                        nativeAdCard.style.marginBottom = '15px';
+                        // FIX: INCREASED HEIGHT
+                        nativeAdCard.style.height = '145px';
+                        nativeAdCard.style.marginBottom = '20px';
                         nativeAdCard.style.background = 'transparent';
                         resultsArea.appendChild(nativeAdCard);
                         if (!isNativeApp() || !AdPlugin) {
