@@ -62,6 +62,17 @@
             border: none; border-radius: 50%; width: 32px; height: 32px;
             font-size: 16px; font-weight: bold; cursor: pointer; color: #333;
         }
+
+        /* STRICT CSS FOR NATIVE ADS TO PREVENT OVERLAP */
+        .native-ad-placeholder {
+            display: block;
+            width: 100%;
+            height: 145px;
+            margin-bottom: 20px;
+            background: transparent;
+            position: relative;
+            z-index: 1; 
+        }
     </style>
 </head>
 <body style="padding-bottom: 60px;">
@@ -214,9 +225,6 @@
         let bannerCreated = false;
 
         window.globalAdConfig = {};
-        window.activeNativeAds = new Set(); 
-        
-        let globalAdObserver = null;
 
         function getAdMobPlugin() { return window.AdMobPlugin || null; }
         function isNativeApp() {
@@ -242,7 +250,7 @@
         function getNativeAdHTML(title = "AdMob Native Placement") {
             const adId = window.globalAdConfig?.nativeId || 'Loading...';
             return `
-                <div class="mock-test-ad-block" style="min-height: 145px; background: #fdfdfd;">
+                <div class="mock-test-ad-block">
                     <span class="mock-test-ad-label">WEB MOCK AD</span>
                     <div style="font-size:24px; margin-top:10px;">💡</div>
                     <div class="mock-test-ad-title">${title}</div>
@@ -341,8 +349,7 @@
                             isAutoShow: true, 
                             position: 'BOTTOM', 
                             adSize: 'BANNER', 
-                            isOverlapping: false, // Ensures banner pushes content up correctly natively
-                            margin: 60
+                            isOverlapping: false // Forces WebView to push up, preventing bottom nav overlap natively
                         });
                         bannerCreated = true;
                     } else if (AdPlugin.showBanner) { await AdPlugin.showBanner(); }
@@ -394,44 +401,6 @@
             } else {
                 onAdClosedCallback();
             }
-        }
-
-        // PERFECT INLINE SCROLL FIX: Stop manual coordinates calculation. 
-        // We use an Observer to trigger the Native view ONCE and bind it to the HTML element.
-        function initAdObserver() {
-            if (globalAdObserver) return;
-            globalAdObserver = new IntersectionObserver((entries) => {
-                const AdPlugin = getAdMobPlugin();
-                if (!isNativeApp() || !AdPlugin) return;
-
-                entries.forEach(entry => {
-                    const adId = entry.target.id;
-                    if (entry.isIntersecting) {
-                        if (!window.activeNativeAds.has(adId)) {
-                            window.activeNativeAds.add(adId);
-                            // Only trigger showNativeAd ONCE per element to prevent the validator spam
-                            AdPlugin.showNativeAd({ 
-                                adId: adId, 
-                                viewId: adId,       // Binds to HTML div in standard Capacitor Admob
-                                elementId: adId,    // Binds to HTML div in NextGen Admob
-                                adUnitId: window.globalAdConfig.nativeId, 
-                                template: "small", 
-                                width: entry.target.offsetWidth, 
-                                height: 145 
-                            }).catch(() => { window.activeNativeAds.delete(adId); });
-                        }
-                    } else {
-                        // Cleanup when element leaves screen to save memory
-                        if (window.activeNativeAds.has(adId)) {
-                            window.activeNativeAds.delete(adId);
-                            if (AdPlugin.hideNativeAd) AdPlugin.hideNativeAd({ adId: adId }).catch(()=>{});
-                        }
-                    }
-                });
-            }, {
-                rootMargin: '100px', // Preloads ad slightly before it hits the visible screen
-                threshold: 0.01
-            });
         }
 
         function initiateLiveInterfaceClocks() {
@@ -537,17 +506,14 @@
             });
         };
 
+        // Clear all active native ads when leaving feed to free resources
         async function clearActiveFeedAds() {
             const AdPlugin = getAdMobPlugin();
             if (isNativeApp() && AdPlugin && AdPlugin.hideNativeAd) {
-                for (let adId of window.activeNativeAds) {
-                    await AdPlugin.hideNativeAd({ adId: adId }).catch(e=>console.log(e));
+                const ads = document.querySelectorAll('.native-ad-placeholder');
+                for (let ad of ads) {
+                    await AdPlugin.hideNativeAd({ adId: ad.id }).catch(e=>console.log(e));
                 }
-            }
-            window.activeNativeAds.clear();
-            if(globalAdObserver) {
-                globalAdObserver.disconnect();
-                globalAdObserver = null;
             }
         }
 
@@ -556,8 +522,6 @@
             if (!container) return;
             clearActiveFeedAds();
             container.innerHTML = "";
-            
-            initAdObserver(); // Initialize observer for Native Ads
 
             const filtered = localCachedBroadcasts.filter(item => (item.category || "").trim().toLowerCase() === currentActiveCategoryFilter.trim().toLowerCase());
             if (filtered.length === 0) {
@@ -581,21 +545,35 @@
                         const nativeAdCard = document.createElement('div');
                         nativeAdCard.id = adDivId;
                         nativeAdCard.className = 'native-ad-placeholder'; 
-                        nativeAdCard.style.width = '100%';
-                        nativeAdCard.style.height = '145px'; 
-                        nativeAdCard.style.marginBottom = '20px';
-                        nativeAdCard.style.background = 'transparent';
                         container.appendChild(nativeAdCard);
                         
                         if (!isNativeApp() || !AdPlugin) {
                             nativeAdCard.innerHTML = getNativeAdHTML("In-Feed Web Mock Ad");
-                        } else {
-                            // Tell observer to watch this specific HTML placeholder
-                            globalAdObserver.observe(nativeAdCard);
                         }
                     }
                 }
             });
+
+            // Initialize Native Ads ONCE layout is finished. No scroll JS required!
+            if (isNativeApp() && AdPlugin) {
+                setTimeout(() => {
+                    const placeholders = document.querySelectorAll('.native-ad-placeholder');
+                    placeholders.forEach(el => {
+                        const rect = el.getBoundingClientRect();
+                        AdPlugin.showNativeAd({
+                            adId: el.id,
+                            viewId: el.id,       // Let Native iOS/Android SDK auto-track scroll
+                            elementId: el.id,    
+                            adUnitId: window.globalAdConfig.nativeId,
+                            template: "small",
+                            x: rect.left,        // Provided explicitly to prevent the ad sticking at top 0,0
+                            y: rect.top,
+                            width: rect.width,
+                            height: 145
+                        }).catch(e => console.log("Native Ad Init Error", e));
+                    });
+                }, 400); // 400ms allows DOM to settle and images to begin parsing
+            }
         }
 
         function setupSearchEngineControls() {
@@ -642,7 +620,6 @@
             resultsArea.innerHTML = '';
             let searchResultCount = 0;
             const AdPlugin = getAdMobPlugin();
-            initAdObserver();
             
             matchedNews.forEach((item) => {
                 const card = document.createElement('article');
@@ -657,19 +634,33 @@
                         const nativeAdCard = document.createElement('div');
                         nativeAdCard.id = adDivId;
                         nativeAdCard.className = 'native-ad-placeholder';
-                        nativeAdCard.style.width = '100%';
-                        nativeAdCard.style.height = '145px';
-                        nativeAdCard.style.marginBottom = '20px';
-                        nativeAdCard.style.background = 'transparent';
                         resultsArea.appendChild(nativeAdCard);
                         if (!isNativeApp() || !AdPlugin) {
                             nativeAdCard.innerHTML = getNativeAdHTML("Search Result Web Mock Ad");
-                        } else {
-                            globalAdObserver.observe(nativeAdCard);
                         }
                     }
                 }
             });
+            
+            if (isNativeApp() && AdPlugin) { 
+                setTimeout(() => {
+                    const placeholders = resultsArea.querySelectorAll('.native-ad-placeholder');
+                    placeholders.forEach(el => {
+                        const rect = el.getBoundingClientRect();
+                        AdPlugin.showNativeAd({
+                            adId: el.id,
+                            viewId: el.id,       
+                            elementId: el.id,
+                            adUnitId: window.globalAdConfig.nativeId,
+                            template: "small",
+                            x: rect.left,
+                            y: rect.top,
+                            width: rect.width,
+                            height: 145
+                        }).catch(()=>{});
+                    });
+                }, 400); 
+            }
         }
 
         function bindVisualInterfaceControls() {
