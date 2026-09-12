@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Node Dependencies & Esbuild
         run: |
@@ -30,7 +30,7 @@ jobs:
 
       - name: Fix Native Ad Overlay Height Bug
         run: |
-          # Patches the plugin's Android XML templates to respect the 120px height constraint
+          # Patches the plugin's Android XML templates to respect the 120px height constraint before syncing
           if [ -d "node_modules/capacitor-admob-nextgen/android/src/main/res/layout" ]; then
             find node_modules/capacitor-admob-nextgen/android/src/main/res/layout -type f -name "*.xml" -exec sed -i 's/android:layout_height="match_parent"/android:layout_height="wrap_content"/g' {} +
             find node_modules/capacitor-admob-nextgen/android/src/main/res/layout -type f -name "*.xml" -exec sed -i 's/android:layout_height="fill_parent"/android:layout_height="wrap_content"/g' {} +
@@ -54,13 +54,16 @@ jobs:
         run: |
           rm -rf www
           mkdir -p www
+          # Copy all web files except dev files
           rsync -av --exclude='.git' --exclude='.github' --exclude='www' --exclude='node_modules' ./ www/
           
+          # Create a Javascript Bridge to connect HTML to the Android App
           echo "import { Capacitor } from '@capacitor/core';" > bridge.js
           echo "import { AdMobNextGen } from 'capacitor-admob-nextgen';" >> bridge.js
           echo "window.Capacitor = Capacitor;" >> bridge.js
           echo "window.AdMobPlugin = AdMobNextGen;" >> bridge.js
           
+          # Compile the bridge into the www folder
           npx esbuild bridge.js --bundle --minify --outfile=www/native-bridge.js
 
       - name: Create Capacitor Config
