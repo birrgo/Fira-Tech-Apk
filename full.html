@@ -24,6 +24,24 @@
             box-shadow: 0px -4px 10px rgba(0, 0, 0, 0.1); text-align: center; pointer-events: auto;
         }
         
+        /* IMPROVED: Native Ad Placeholder - Flexible Height */
+        .native-ad-placeholder {
+            display: block;
+            width: 100%;
+            min-height: 120px;
+            max-height: 200px;
+            margin: 20px 0;
+            padding: 0;
+            background: #ffffff;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            z-index: 10;
+            clear: both;
+        }
+        
         .mock-test-ad-block {
             background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px;
             padding: 15px; text-align: center; margin-top: 15px; display: flex;
@@ -88,6 +106,7 @@
         window.globalAdConfig = {};
         let targetItemId = null;
         let bannerCreated = false;
+        let nativeAdObserver = null;
 
         function getAdMobPlugin() { return window.AdMobPlugin || null; }
         function isNativeApp() {
@@ -243,9 +262,9 @@
             let redirectBtnHTML = targetRedirectUrl 
                 ? `<div style="margin-top:20px;"><a href="${targetRedirectUrl}" target="_blank" class="redirect-link-btn" style="width:100%; display:block; text-align:center; padding:12px; background:#2563eb; color:white; border-radius:8px; font-weight:bold; text-decoration:none;"><span>${customActionLabel}</span></a></div>` : "";
 
-            // NATIVE AD: Inserted securely placed between Article Text and the Action Button
+            // NATIVE AD: Improved placement with better spacing and visibility control
             const articleNativeAdId = 'article-native-ad';
-            let articleNativeAdHtml = `<div id="${articleNativeAdId}" class="native-ad-placeholder" style="width:100%; height:120px; margin: 25px 0; background: transparent;"></div>`;
+            let articleNativeAdHtml = `<div id="${articleNativeAdId}" class="native-ad-placeholder" style="width:100%; min-height:120px; margin: 20px 0; background: transparent;"></div>`;
 
             readerBody.innerHTML = `
                 <div class="reader-meta-bar" style="margin-bottom:15px;">
@@ -264,10 +283,56 @@
             // Referencing 'Native Ad on Post Details' from 45724.jpg
             if (window.globalAdConfig?.placements?.nativeAdPostDetails && window.globalAdConfig?.nativeId) {
                 if (isNativeApp() && AdPlugin) {
+                    // Setup Intersection Observer for better native ad visibility tracking
+                    setupNativeAdObserver();
                     setTimeout(() => updateAllNativeAdsPositions(), 350);
                 } else {
                     document.getElementById(articleNativeAdId).innerHTML = getNativeAdHTML("In-Article Web Mock Ad");
                 }
+            }
+        }
+
+        function setupNativeAdObserver() {
+            if (nativeAdObserver) return;
+            
+            const options = {
+                root: null,
+                rootMargin: '50px',
+                threshold: 0.1
+            };
+
+            nativeAdObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        updateNativeAdPosition(entry.target);
+                    }
+                });
+            }, options);
+
+            // Observe all native ad placeholders
+            document.querySelectorAll('.native-ad-placeholder').forEach(el => {
+                nativeAdObserver.observe(el);
+            });
+        }
+
+        function updateNativeAdPosition(element) {
+            const AdPlugin = getAdMobPlugin();
+            if (!isNativeApp() || !AdPlugin || !AdPlugin.showNativeAd) return;
+
+            const rect = element.getBoundingClientRect();
+            const bannerHeight = window.globalAdConfig?.placements?.bannerAdPostDetails ? 60 : 0;
+            
+            // IMPROVED: Better visibility detection with viewport margins
+            if (rect.bottom > -50 && rect.top < (window.innerHeight + 50 - bannerHeight)) {
+                AdPlugin.showNativeAd({ 
+                    adId: element.id, 
+                    adUnitId: window.globalAdConfig.nativeId, 
+                    template: "small", 
+                    x: Math.max(0, rect.left), 
+                    y: Math.max(0, rect.top), 
+                    width: Math.min(rect.width, window.innerWidth), 
+                    height: 120 
+                }).catch(() => {});
             }
         }
 
@@ -288,13 +353,8 @@
             const adElements = document.querySelectorAll('.native-ad-placeholder');
             
             adElements.forEach(el => {
-                if (el.offsetParent === null) return; 
-                const rect = el.getBoundingClientRect();
-                const bannerHeight = window.globalAdConfig?.placements?.bannerAdPostDetails ? 60 : 0;
-                
-                if (rect.bottom > 0 && rect.top < (window.innerHeight - bannerHeight)) {
-                    AdPlugin.showNativeAd({ adId: el.id, adUnitId: window.globalAdConfig.nativeId, template: "small", x: rect.left, y: rect.top, width: rect.width, height: 120 }).catch(() => {});
-                }
+                if (el.offsetParent === null) return;
+                updateNativeAdPosition(el);
             });
         }
     </script>
