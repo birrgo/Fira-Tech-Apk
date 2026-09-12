@@ -63,15 +63,21 @@
             font-size: 16px; font-weight: bold; cursor: pointer; color: #333;
         }
 
-        /* EXACT HTML RESERVATION FOR THE NATIVE AD */
+        /* STRICT HTML RESERVATION FOR THE NATIVE AD */
         .native-ad-placeholder {
             display: block;
             width: 100%;
-            height: 130px; /* Standardized height to match the 'small' native template */
+            height: 130px; 
+            min-height: 130px;
+            max-height: 130px;
+            margin: 12px 0;
+            padding: 0;
             background: transparent;
             position: relative;
             overflow: hidden;
+            box-sizing: border-box;
             z-index: 1; 
+            pointer-events: none; /* Prevents accidental interaction with the empty HTML reservation */
         }
     </style>
 </head>
@@ -225,7 +231,12 @@
         let bannerCreated = false;
 
         window.globalAdConfig = {};
-        window.activeNativeAds = new Map(); 
+        
+        // --- NATIVE AD CONTROLLER STATE ---
+        window.activeNativeAds = new Map();
+        window.nativeAdObserver = null;
+        let nativeAdObserverStarted = false;
+        let nativeScrollFrame = null;
 
         function getAdMobPlugin() { return window.AdMobPlugin || null; }
         function isNativeApp() {
@@ -234,28 +245,189 @@
             return false;
         }
 
+        // ============================================================
+        // NATIVE IN-FEED AD CONTROLLER
+        // ============================================================
+        function initializeNativeAdObserver() {
+            if (nativeAdObserverStarted) return;
+            nativeAdObserverStarted = true;
+
+            window.nativeAdObserver = new IntersectionObserver(async (entries) => {
+                const AdPlugin = getAdMobPlugin();
+                if (!isNativeApp() || !AdPlugin || !window.globalAdConfig?.nativeId) return;
+
+                for (const entry of entries) {
+                    const element = entry.target;
+                    if (!element || !element.id) continue;
+
+                    if (entry.isIntersecting) {
+                        await createFeedNativeAd(element);
+                    } else {
+                        await hideFeedNativeAd(element);
+                    }
+                }
+            }, { root: null, rootMargin: "100px 0px", threshold: 0.01 });
+        }
+
+        async function createFeedNativeAd(element) {
+            const AdPlugin = getAdMobPlugin();
+            if (!isNativeApp() || !AdPlugin || !window.globalAdConfig?.nativeId) return;
+
+            const adId = element.id;
+
+            // VERY IMPORTANT: Do NOT call showNativeAd again if this ad already exists.
+            if (window.activeNativeAds.has(adId)) {
+                updateSingleNativeAdPosition(element);
+                return;
+            }
+
+            const rect = element.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return;
+
+            try {
+                await AdPlugin.showNativeAd({
+                    adId: adId,
+                    adUnitId: window.globalAdConfig.nativeId,
+                    template: "small",
+                    x: Math.round(rect.left),
+                    y: Math.round(rect.top),
+                    width: Math.round(rect.width),
+                    height: 130
+                });
+
+                // Remember that this native view already exists.
+                window.activeNativeAds.set(adId, {
+                    element: element,
+                    lastX: Math.round(rect.left),
+                    lastY: Math.round(rect.top),
+                    width: Math.round(rect.width),
+                    height: 130
+                });
+            } catch (error) {
+                console.error("Native feed ad creation failed:", error);
+            }
+        }
+
+        function updateSingleNativeAdPosition(element) {
+            const AdPlugin = getAdMobPlugin();
+            if (!isNativeApp() || !AdPlugin || !AdPlugin.showNativeAd) return;
+
+            const adId = element.id;
+            const adState = window.activeNativeAds.get(adId);
+            if (!adState) return;
+
+            const rect = element.getBoundingClientRect();
+            const x = Math.round(rect.left);
+            const y = Math.round(rect.top);
+            const width = Math.round(rect.width);
+            const height = 130;
+
+            // Don't send bridge updates for tiny movements.
+            if (Math.abs(adState.lastX - x) < 5 && Math.abs(adState.lastY - y) < 5 && Math.abs(adState.width - width) < 5) {
+                return;
+            }
+
+            adState.lastX = x;
+            adState.lastY = y;
+            adState.width = width;
+
+            // Updates the existing native view rather than creating a second one.
+            AdPlugin.showNativeAd({
+                adId: adId,
+                adUnitId: window.globalAdConfig.nativeId,
+                template: "small",
+                x: x,
+                y: y,
+                width: width,
+                height: height
+            }).catch(() => {});
+        }
+
+        async function hideFeedNativeAd(element) {
+            const AdPlugin = getAdMobPlugin();
+            if (!element) return;
+
+            const adId = element.id;
+            if (!window.activeNativeAds.has(adId)) return;
+
+            try {
+                if (isNativeApp() && AdPlugin && AdPlugin.hideNativeAd) {
+                    await AdPlugin.hideNativeAd({ adId: adId });
+                }
+            } catch (error) {
+                console.log("Native ad hide error:", error);
+            }
+            window.activeNativeAds.delete(adId);
+        }
+
+        function initializeNativeScrollSync() {
+            document.addEventListener("scroll", () => {
+                if (nativeScrollFrame !== null) return;
+
+                nativeScrollFrame = requestAnimationFrame(() => {
+                    nativeScrollFrame = null;
+                    // Only update native ads that ALREADY EXIST.
+                    window.activeNativeAds.forEach((state) => {
+                        if (state.element) {
+                            updateSingleNativeAdPosition(state.element);
+                        }
+                    });
+                });
+            }, true);
+        }
+
+        async function clearActiveFeedAds() {
+            const AdPlugin = getAdMobPlugin();
+            if (window.nativeAdObserver) window.nativeAdObserver.disconnect();
+
+            if (isNativeApp() && AdPlugin && AdPlugin.hideNativeAd) {
+                const ids = Array.from(window.activeNativeAds.keys());
+                for (const adId of ids) {
+                    try {
+                        await AdPlugin.hideNativeAd({ adId: adId });
+                    } catch (error) {
+                        console.log("Native ad cleanup error:", error);
+                    }
+                }
+            }
+
+            window.activeNativeAds.clear();
+            nativeAdObserverStarted = false;
+            window.nativeAdObserver = null;
+
+            if (nativeScrollFrame !== null) {
+                cancelAnimationFrame(nativeScrollFrame);
+                nativeScrollFrame = null;
+            }
+        }
+
+        // ============================================================
+        // LIFECYCLE & RENDER LOGIC
+        // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
+            initializeNativeAdObserver();
+            initializeNativeScrollSync();
+            
             fetchAdMobUnits(); 
             streamLiveAdminUpdatesLog();
             bindVisualInterfaceControls();
             setupSearchEngineControls();
-            initiateScrollSync(); // Boot the manual native coordinate sync
+            initiateLiveInterfaceClocks();
+            setupAppResumeAdListener();
 
             const closeBtn = document.getElementById('closePopupBtn');
             if (closeBtn) closeBtn.addEventListener('click', () => {
                 document.getElementById('customPopupModule').classList.remove('show-popup');
             });
-            initiateLiveInterfaceClocks();
-            setupAppResumeAdListener();
         });
 
         function getNativeAdHTML(title = "AdMob Native Placement") {
             const adId = window.globalAdConfig?.nativeId || 'Loading...';
             return `
-                <div class="mock-test-ad-block" style="min-height: 145px; background: #fdfdfd; border: none; box-shadow: none;">
+                <div class="mock-test-ad-block" style="min-height: 110px; background: #fdfdfd; border: none; box-shadow: none;">
                     <span class="mock-test-ad-label">WEB MOCK AD</span>
-                    <div style="font-size:24px; margin-top:10px;">💡</div>
-                    <div class="mock-test-ad-title">${title}</div>
+                    <div style="font-size:24px; margin-top:5px;">💡</div>
+                    <div class="mock-test-ad-title" style="margin-top:5px;">${title}</div>
                     <p class="mock-test-ad-desc">Real ad will load in APK using ID: ${adId}</p>
                 </div>
             `;
@@ -351,7 +523,7 @@
                             isAutoShow: true, 
                             position: 'BOTTOM', 
                             adSize: 'BANNER', 
-                            isOverlapping: false, // Ensures banner pushes content up correctly natively
+                            isOverlapping: false,
                             margin: 60
                         });
                         bannerCreated = true;
@@ -404,57 +576,6 @@
             } else {
                 onAdClosedCallback();
             }
-        }
-
-        // --- NATIVE SCROLL SYNC LOGIC ---
-        // Continuously maps the Android native view to the moving HTML <div> coordinates
-        function initiateScrollSync() {
-            let ticking = false;
-            window.addEventListener('scroll', () => {
-                if (!ticking) {
-                    window.requestAnimationFrame(() => {
-                        updateNativeAdPositions();
-                        ticking = false;
-                    });
-                    ticking = true;
-                }
-            }, { passive: true });
-            
-            // Also sync periodically in case DOM repaints alter the box height
-            setInterval(updateNativeAdPositions, 1000); 
-        }
-
-        function updateNativeAdPositions() {
-            const AdPlugin = getAdMobPlugin();
-            if (!isNativeApp() || !AdPlugin || !AdPlugin.showNativeAd) return;
-
-            const headerHeight = 60;
-            const bottomSpace = 60; 
-
-            document.querySelectorAll('.native-ad-placeholder').forEach(el => {
-                const rect = el.getBoundingClientRect();
-                const isVisible = (rect.bottom > headerHeight && rect.top < (window.innerHeight - bottomSpace));
-
-                if (isVisible) {
-                    // Update Android view to match exact HTML placeholder position
-                    AdPlugin.showNativeAd({
-                        adId: el.id,
-                        adUnitId: window.globalAdConfig.nativeId,
-                        template: "small",
-                        x: rect.left,
-                        y: rect.top,
-                        width: rect.width,
-                        height: rect.height
-                    }).catch(() => {});
-                    window.activeNativeAds.set(el.id, true);
-                } else {
-                    // Hide when off-screen to save memory
-                    if (window.activeNativeAds.has(el.id)) {
-                        AdPlugin.hideNativeAd({ adId: el.id }).catch(() => {});
-                        window.activeNativeAds.delete(el.id);
-                    }
-                }
-            });
         }
 
         function initiateLiveInterfaceClocks() {
@@ -560,20 +681,11 @@
             });
         };
 
-        async function clearActiveFeedAds() {
-            const AdPlugin = getAdMobPlugin();
-            if (isNativeApp() && AdPlugin && AdPlugin.hideNativeAd) {
-                for (let adId of window.activeNativeAds.keys()) {
-                    await AdPlugin.hideNativeAd({ adId: adId }).catch(e=>console.log(e));
-                }
-            }
-            window.activeNativeAds.clear();
-        }
-
         function renderFilteredBroadcasts() {
             const container = document.getElementById('broadcastsContainer');
             if (!container) return;
             clearActiveFeedAds();
+            initializeNativeAdObserver();
             container.innerHTML = "";
             
             const filtered = localCachedBroadcasts.filter(item => (item.category || "").trim().toLowerCase() === currentActiveCategoryFilter.trim().toLowerCase());
@@ -592,17 +704,18 @@
                 container.appendChild(card);
                 currentPostCount++;
 
-                // Generates the strict placeholder block every 2 posts
                 if (currentPostCount % 2 === 0) {
                     if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId) {
                         const adDivId = `native-feed-ad-${currentPostCount}`;
                         const nativeAdCard = document.createElement('div');
                         nativeAdCard.id = adDivId;
-                        
-                        // FIX APPLIED HERE: Added 'featured-broadcast-card' to inherit styling
                         nativeAdCard.className = 'featured-broadcast-card native-ad-placeholder'; 
                         
                         container.appendChild(nativeAdCard);
+                        
+                        if (isNativeApp() && getAdMobPlugin() && window.nativeAdObserver) {
+                            window.nativeAdObserver.observe(nativeAdCard);
+                        }
                         
                         if (!isNativeApp() || !AdPlugin) {
                             nativeAdCard.innerHTML = getNativeAdHTML("In-Feed Web Mock Ad");
@@ -611,9 +724,12 @@
                 }
             });
             
-            // Initial positioning flush after DOM renders
             if (isNativeApp() && AdPlugin) {
-                setTimeout(updateNativeAdPositions, 200);
+                setTimeout(() => {
+                    document.querySelectorAll('.native-ad-placeholder').forEach(el => {
+                        if (window.activeNativeAds.has(el.id)) updateSingleNativeAdPosition(el);
+                    });
+                }, 200);
             }
         }
 
@@ -674,11 +790,13 @@
                         const adDivId = `native-search-ad-${searchResultCount}`;
                         const nativeAdCard = document.createElement('div');
                         nativeAdCard.id = adDivId;
-                        
-                        // FIX APPLIED HERE: Added 'featured-broadcast-card' to inherit styling
                         nativeAdCard.className = 'featured-broadcast-card native-ad-placeholder';
                         
                         resultsArea.appendChild(nativeAdCard);
+                        
+                        if (isNativeApp() && getAdMobPlugin() && window.nativeAdObserver) {
+                            window.nativeAdObserver.observe(nativeAdCard);
+                        }
                         
                         if (!isNativeApp() || !AdPlugin) {
                             nativeAdCard.innerHTML = getNativeAdHTML("Search Result Web Mock Ad");
@@ -688,7 +806,11 @@
             });
 
             if (isNativeApp() && AdPlugin) {
-                setTimeout(updateNativeAdPositions, 200);
+                setTimeout(() => {
+                    document.querySelectorAll('.native-ad-placeholder').forEach(el => {
+                        if (window.activeNativeAds.has(el.id)) updateSingleNativeAdPosition(el);
+                    });
+                }, 200);
             }
         }
 
