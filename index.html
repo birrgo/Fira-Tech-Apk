@@ -13,7 +13,14 @@
         .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
         .ad-container-wrapper { position: fixed; bottom: 80px; left: 0; width: 100%; display: flex; justify-content: center; pointer-events: none; z-index: 9000; }
         .admob-preview-banner { width: 320px; height: 50px; background: #f1c40f; color: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; border: 2px dashed #d35400; border-radius: 4px; box-shadow: 0px 4px 10px rgba(0,0,0,0.25); text-align: center; pointer-events: auto; }
-        .native-ad-placeholder { display: block; width: 100%; height: 120px; min-height: 120px; margin: 12px 0; padding: 0; background: transparent; border-radius: 12px; position: relative; overflow: hidden; box-sizing: border-box; z-index: 1; pointer-events: none; flex: 0 0 100%; grid-column: 1 / -1; }
+        
+        /* Fixed Native Ad Alignment CSS */
+        .native-ad-wrapper { display: flex; flex-direction: column; padding: 12px 16px; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; position: relative; }
+        .native-ad-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+        .native-ad-badge { background: #f59e0b; color: #fff; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .native-ad-location { font-size: 10px; color: #64748b; font-weight: 600; }
+        .native-ad-placeholder { display: block; width: 100%; height: 120px; min-height: 120px; margin: 0; padding: 0; background: #f8fafc; border-radius: 8px; position: relative; overflow: hidden; box-sizing: border-box; z-index: 1; pointer-events: none; }
+        
         .mock-interstitial-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99999; display: none; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .mock-interstitial-overlay.active { display: flex; }
         .mock-interstitial-card { background: #ffffff; width: 100%; max-width: 360px; border-radius: 12px; padding: 24px; text-align: center; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
@@ -112,10 +119,33 @@
         let rawShikelaNewsData = {}, rawNewNewsData = {}, localCachedBroadcasts = [];
         let currentActiveCategoryFilter = "Fira Tech Update";
         let hasTriggeredAppOpen = false, lastAppOpenTime = 0, isOpeningArticle = false, bannerCreated = false;
+        let userLocationData = null;
         
         window.globalAdConfig = {};
         window.nativeAdObserver = null;
         let nativeAdObserverStarted = false, activeNativeAdId = null, nativeAdOperation = Promise.resolve(), currentAdGeneration = 0, requestedNativeAdId = null;
+
+        // Fetch IP/Location and cache securely via localStorage
+        async function fetchUserIPLocation() {
+            const cachedData = localStorage.getItem('firatech_user_location');
+            if (cachedData) {
+                const parsed = JSON.parse(cachedData);
+                if (Date.now() - parsed.timestamp < 3600000) { // Cache for 1 hour
+                    userLocationData = parsed;
+                    return parsed;
+                }
+            }
+            try {
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+                userLocationData = { ip: data.ip, city: data.city, country: data.country_name, timestamp: Date.now() };
+                localStorage.setItem('firatech_user_location', JSON.stringify(userLocationData));
+                return userLocationData;
+            } catch (error) {
+                console.warn("Could not fetch IP location", error);
+                return null;
+            }
+        }
 
         function getAdMobPlugin() { return window.AdMobPlugin || null; }
         function isNativeApp() { return typeof window !== "undefined" && window.Capacitor && typeof window.Capacitor.isNativePlatform === "function" ? window.Capacitor.isNativePlatform() : false; }
@@ -147,7 +177,17 @@
 
                 if (capturedGeneration !== currentAdGeneration || requestedNativeAdId !== elementId) return;
                 try {
-                    await AdPlugin.showNativeAd({ adId: elementId, adUnitId: window.globalAdConfig.nativeId, template: "small", x: Math.round(rect.left), y: Math.round(rect.top), width: Math.round(rect.width), height: 120, retryInterval: 5000 });
+                    // Adjusted precise sizing and positioning for internal card fit
+                    await AdPlugin.showNativeAd({ 
+                        adId: elementId, 
+                        adUnitId: window.globalAdConfig.nativeId, 
+                        template: "small", 
+                        x: Math.round(rect.left), 
+                        y: Math.round(rect.top), 
+                        width: Math.round(rect.width), 
+                        height: Math.round(rect.height), 
+                        retryInterval: 5000 
+                    });
                     if (capturedGeneration !== currentAdGeneration || requestedNativeAdId !== elementId) {
                         try { if (typeof AdPlugin.hideNativeAd === "function") await AdPlugin.hideNativeAd(); } catch (_) {}
                         return;
@@ -193,7 +233,8 @@
             await hideCurrentNativeAd();
         }
 
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", async () => {
+            await fetchUserIPLocation(); // Initialize Location caching on load
             fetchAdMobUnits(); streamLiveAdminUpdatesLog(); bindVisualInterfaceControls(); setupSearchEngineControls(); initiateLiveInterfaceClocks(); setupAppResumeAdListener();
             const closeBtn = document.getElementById("closePopupBtn");
             if (closeBtn) closeBtn.addEventListener("click", () => {
@@ -431,15 +472,29 @@
                 container.appendChild(card);
                 currentPostCount++;
 
+                // Inject Native Ad Wrapper every 2 posts perfectly matched to card style
                 if (currentPostCount % 2 === 0 && currentPostCount !== filtered.length) {
                     const nativeEnabled = window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId && isNativeApp() && getAdMobPlugin();
-                    if (nativeEnabled) {
-                        const adDivId = `native-feed-ad-${currentPostCount}`;
-                        const nativeAdCard = document.createElement("div");
-                        nativeAdCard.id = adDivId;
-                        nativeAdCard.className = "native-ad-placeholder";
-                        container.appendChild(nativeAdCard);
-                        if (window.nativeAdObserver) window.nativeAdObserver.observe(nativeAdCard);
+                    
+                    const adDivId = `native-feed-ad-${currentPostCount}`;
+                    const nativeAdContainer = document.createElement("article");
+                    nativeAdContainer.className = "native-ad-wrapper";
+                    
+                    const locationText = userLocationData ? `${userLocationData.city}, ${userLocationData.country} (IP: ${userLocationData.ip})` : "Localized Ad";
+                    
+                    nativeAdContainer.innerHTML = `
+                        <div class="native-ad-header">
+                            <span class="native-ad-badge">Advertisement</span>
+                            <span class="native-ad-location">${locationText}</span>
+                        </div>
+                        <div id="${adDivId}" class="native-ad-placeholder"></div>
+                    `;
+                    
+                    container.appendChild(nativeAdContainer);
+
+                    if (nativeEnabled && window.nativeAdObserver) {
+                        const adPlaceholderNode = nativeAdContainer.querySelector(`#${adDivId}`);
+                        window.nativeAdObserver.observe(adPlaceholderNode);
                     }
                 }
             });
