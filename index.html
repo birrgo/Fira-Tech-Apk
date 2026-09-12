@@ -217,6 +217,7 @@
         window.nativeAdObserver = null;
         let nativeAdObserverStarted = false;
         let activeNativeAdId = null;
+        let lastAdRect = { x: -1, y: -1, width: -1, height: -1 }; // Added tracker variable to sync scrolling perfectly without reloading the ad
         let nativeAdOperation = Promise.resolve();
         let currentAdGeneration = 0; 
 
@@ -225,6 +226,48 @@
             if (typeof window === 'undefined' || !window.Capacitor) return false;
             if (typeof window.Capacitor.isNativePlatform === 'function') return window.Capacitor.isNativePlatform();
             return false;
+        }
+
+        // PERFECT SCROLL SYNC LISTENER (Solves the layout breaking & floating issue)
+        function setupNativeAdScrollSync() {
+            window.addEventListener('scroll', () => {
+                if (activeNativeAdId && isNativeApp()) {
+                    window.requestAnimationFrame(() => {
+                        const el = document.getElementById(activeNativeAdId);
+                        if (!el) return;
+                        
+                        const rect = el.getBoundingClientRect();
+                        const newY = Math.round(rect.top);
+                        const newX = Math.round(rect.left);
+                        
+                        // ONLY trigger a bridge update if coordinates mathematically shifted
+                        if (newY === lastAdRect.y && newX === lastAdRect.x) return;
+
+                        lastAdRect.y = newY;
+                        lastAdRect.x = newX;
+
+                        const AdPlugin = getAdMobPlugin();
+                        if (AdPlugin) {
+                            const opts = {
+                                adId: activeNativeAdId,
+                                adUnitId: window.globalAdConfig.nativeId,
+                                template: "small",
+                                x: newX,
+                                y: newY,
+                                width: lastAdRect.width,
+                                height: 120
+                            };
+                            
+                            // Check available method depending on plugin
+                            if (typeof AdPlugin.updateNativeAd === 'function') {
+                                AdPlugin.updateNativeAd(opts).catch(()=>{});
+                            } else {
+                                AdPlugin.showNativeAd(opts).catch(()=>{});
+                            }
+                        }
+                    });
+                }
+            }, { passive: true });
         }
 
         function initializeNativeAdObserver() {
@@ -260,6 +303,7 @@
                             
                             try {
                                 await AdPlugin.showNativeAd({
+                                    adId: element.id, // Explicitly pass DOM ID reference
                                     adUnitId: window.globalAdConfig.nativeId,
                                     template: "small",
                                     x: Math.round(rect.left),
@@ -269,6 +313,7 @@
                                     retryInterval: 5000
                                 });
                                 activeNativeAdId = element.id;
+                                lastAdRect = { x: Math.round(rect.left), y: Math.round(rect.top), width: Math.round(rect.width), height: 120 };
                             } catch (error) {
                                 console.error("Native feed ad creation failed:", error);
                             }
@@ -317,6 +362,7 @@
             setupSearchEngineControls();
             initiateLiveInterfaceClocks();
             setupAppResumeAdListener();
+            setupNativeAdScrollSync(); // Initialize strict scroll handler
 
             const closeBtn = document.getElementById('closePopupBtn');
             if (closeBtn) closeBtn.addEventListener('click', () => {
