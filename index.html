@@ -131,12 +131,11 @@
 
         .featured-broadcast-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--primary-gradient); }
         
-        /* Updated Native Ad CSS Management */
         .featured-broadcast-card.native-ad-card { 
             padding: 12px; 
             background: #ffffff; 
             border: 1px solid #e2e8f0; 
-            min-height: 150px;
+            min-height: 120px;
         }
 
         .badge-meta-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
@@ -195,12 +194,10 @@
             text-align: center; pointer-events: auto; 
         }
 
-        /* Fully configured native ad slot explicitly managed by CSS */
         .native-feed-ad-slot {
             width: 100%;
-            min-height: 120px;
-            max-height: 350px;
-            height: auto;
+            min-height: 100px;
+            height: 100px;
             background: transparent;
             border-radius: 8px;
             position: relative;
@@ -236,7 +233,7 @@
         .popup-body-desc { font-size: 13px; font-weight: 500; color: var(--text-muted); line-height: 1.4; margin-bottom: 20px; }
         .popup-dismiss-action { width: 100%; padding: 12px; background: var(--primary-gradient); color: #ffffff; border: none; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
 
-        /* --- BOTTOM NAVIGATION (Fully Fixed Width Spanning) --- */
+        /* --- BOTTOM NAVIGATION --- */
         .bottom-nav {
             position: fixed; 
             bottom: 0; 
@@ -342,6 +339,7 @@
         let lastInterstitialTime = 0;
         let renderLimit = 15;
         let renderTimeout = null;
+        let scrollHideTimeout = null;
         
         window.globalAdConfig = {};
         window.nativeAdObserver = null;
@@ -365,7 +363,7 @@
         async function hideCurrentNativeAd() {
             const AdPlugin = getAdMobPlugin();
             if (!isNativeApp() || !AdPlugin || typeof AdPlugin.hideNativeAd !== "function") { activeNativeAdId = null; return; }
-            try { await AdPlugin.hideNativeAd(); } catch (error) { console.warn("Native ad hide warning:", error); }
+            try { await AdPlugin.hideNativeAd(); } catch (error) {}
             activeNativeAdId = null;
         }
 
@@ -379,7 +377,7 @@
                 if (requestedNativeAdId !== elementId || activeNativeAdId === elementId || !document.body.contains(element)) return;
                 
                 const rect = element.getBoundingClientRect();
-                if (rect.width <= 0 || rect.height <= 0) return;
+                if (rect.width <= 0 || rect.height <= 0 || rect.top < 0 || rect.top > window.innerHeight) return;
 
                 if (activeNativeAdId) {
                     try { if (typeof AdPlugin.hideNativeAd === "function") await AdPlugin.hideNativeAd(); } catch (_) {}
@@ -403,7 +401,7 @@
                         return;
                     }
                     activeNativeAdId = elementId;
-                } catch (error) { console.error("Native feed ad creation failed:", error); }
+                } catch (error) {}
             });
             await nativeAdOperation;
         }
@@ -455,7 +453,7 @@
                             if (typeof AdPlugin.initialize === "function") await AdPlugin.initialize({ isTesting: true });
                             triggerBannerAdHomePage(); preloadAppOpenAd();
                             if (localCachedBroadcasts.length > 0) queueRender();
-                        } catch (e) { console.log("AdMob Init Error:", e); }
+                        } catch (e) {}
                     })();
                 } else {
                     triggerBannerAdHomePage();
@@ -505,7 +503,7 @@
                         await AdPlugin.createBanner({ adUnitId: window.globalAdConfig.bannerId, isAutoShow: true, position: "BOTTOM", adSize: "BANNER" });
                         bannerCreated = true;
                     } else if (AdPlugin.showBanner) { await AdPlugin.showBanner(); }
-                } catch (e) { console.error("Banner Ad Failed:", e); }
+                } catch (e) {}
             } else if (adWrapper) {
                 adWrapper.style.display = "flex";
                 const preview = document.getElementById("admobPreviewBanner");
@@ -637,7 +635,7 @@
             isOpeningArticle = true;
             showInterstitialAdMock(async () => {
                 const AdPlugin = getAdMobPlugin();
-                if (isNativeApp() && AdPlugin && AdPlugin.hideBanner) await AdPlugin.hideBanner().catch(e => console.log(e));
+                if (isNativeApp() && AdPlugin && AdPlugin.hideBanner) await AdPlugin.hideBanner().catch(() => {});
                 
                 requestedNativeAdId = null;
                 await hideCurrentNativeAd();
@@ -661,7 +659,22 @@
         function setupPaginationListener() {
             const contentArea = document.getElementById("mainContentArea");
             if (!contentArea) return;
+            
             contentArea.addEventListener("scroll", () => {
+                // Hide native ad instantly during scroll to prevent drifting/glitches
+                if (activeNativeAdId) {
+                    hideCurrentNativeAd();
+                }
+                if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
+                scrollHideTimeout = setTimeout(() => {
+                    // Re-check visible elements after scroll settles
+                    const activeCard = document.querySelector('.native-ad-card');
+                    if (activeCard) {
+                        const slot = activeCard.querySelector('.native-feed-ad-slot');
+                        if (slot) showNativeAdForSlot(slot);
+                    }
+                }, 200);
+
                 if (contentArea.scrollTop + contentArea.clientHeight >= contentArea.scrollHeight - 200) {
                     if (renderLimit < localCachedBroadcasts.length) {
                         renderLimit += 15;
