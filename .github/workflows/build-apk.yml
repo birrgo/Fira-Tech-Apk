@@ -26,7 +26,7 @@ jobs:
       - name: Install Node Dependencies & Esbuild
         run: |
           npm init -y
-          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/splash-screen@8 capacitor-admob-nextgen esbuild
+          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/splash-screen@8 capacitor-admob-nextgen@1.2.9 esbuild
 
       - name: Configure NextGen Ads & Sync Hooks in package.json
         run: |
@@ -86,16 +86,13 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Fix Native Ad Full-Screen Bug
+      - name: Fix Native Ad XML Templates
         run: |
-          # Finds the native ad layout files injected by the plugin and forces them to respect constraints
+          # Only safely target the injected XML layout templates
           if [ -d "android/app/src/main/res/layout" ]; then
             find android/app/src/main/res/layout -type f -name "*.xml" -exec sed -i 's/android:layout_height="match_parent"/android:layout_height="wrap_content"/g' {} +
             find android/app/src/main/res/layout -type f -name "*.xml" -exec sed -i 's/android:layout_height="fill_parent"/android:layout_height="wrap_content"/g' {} +
           fi
-          
-          # Ensure the AdMob plugin's source code also uses wrap_content for dynamically created views
-          find node_modules/capacitor-admob-nextgen/android -name "*.java" -type f -exec sed -i 's/LayoutParams.MATCH_PARENT/LayoutParams.WRAP_CONTENT/g' {} +
 
       - name: Target API Level 36 and MinSdk 24
         run: |
@@ -116,7 +113,6 @@ jobs:
 
       - name: Fix Android Hardware Back Button
         run: |
-          # Automatically map the PACKAGE_NAME to the correct Java directory structure
           PACKAGE_PATH=$(echo "${{ env.PACKAGE_NAME }}" | tr '.' '/')
           mkdir -p android/app/src/main/java/$PACKAGE_PATH
           
