@@ -9,135 +9,368 @@ on:
 env:
   APP_NAME: "Fira Tech"
   PACKAGE_NAME: "com.firatech.app"
+
+  # Google official Android AdMob TEST App ID
   ADMOB_APP_ID: "ca-app-pub-3940256099942544~3347511713"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+
+      # ============================================================
+      # 1. CHECKOUT
+      # ============================================================
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+
+      # ============================================================
+      # 2. NODE.JS
+      # Capacitor 8 requires Node.js 22+
+      # ============================================================
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "22"
+          cache: "npm"
 
+
+      # ============================================================
+      # 3. INSTALL DEPENDENCIES
+      # ============================================================
       - name: Install Node Dependencies & Esbuild
+        shell: bash
         run: |
-          if [ ! -f package.json ]; then npm init -y; fi
-          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/splash-screen@8 capacitor-admob-nextgen@1.2.9 cordova-plugin-admob-nextgen-native esbuild
+          set -e
 
-      - name: Configure NextGen Ads
+          if [ ! -f package.json ]; then
+            npm init -y
+          fi
+
+          npm install \
+            @capacitor/core@8 \
+            @capacitor/cli@8 \
+            @capacitor/android@8 \
+            @capacitor/splash-screen@8 \
+            capacitor-admob-nextgen@1.2.9 \
+            cordova-plugin-admob-nextgen-native \
+            esbuild
+
+
+      # ============================================================
+      # 4. CONFIGURE ADMOB
+      # ============================================================
+      - name: Configure NextGen AdMob
+        shell: bash
         run: |
-          node -e "
-          const fs = require('fs');
-          let pkg = JSON.parse(fs.readFileSync('package.json'));
-          
+          set -e
+
+          node <<'NODE'
+          const fs = require("fs");
+
+          const packageFile = "package.json";
+          const pkg = JSON.parse(fs.readFileSync(packageFile, "utf8"));
+
           pkg.admob = {
-            androidAppId: '${{ env.ADMOB_APP_ID }}',
-            enableNativeAds: { android: true }
+            androidAppId: process.env.ADMOB_APP_ID,
+            enableNativeAds: {
+              android: true
+            }
           };
-          
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-          "
 
-      - name: Bundle Web Files & Compile Native Bridge
+          fs.writeFileSync(
+            packageFile,
+            JSON.stringify(pkg, null, 2) + "\n"
+          );
+
+          console.log("AdMob test App ID configured.");
+          NODE
+
+
+      # ============================================================
+      # 5. CREATE WWW DIRECTORY
+      # ============================================================
+      - name: Bundle Web Files
+        shell: bash
         run: |
+          set -e
+
           rm -rf www
           mkdir -p www
-          # Copy all web files except dev files
-          rsync -av --exclude='.git' --exclude='.github' --exclude='www' --exclude='node_modules' ./ www/
-          
-          # Create a Javascript Bridge to connect HTML to the Android App
-          echo "import { Capacitor } from '@capacitor/core';" > bridge.js
-          echo "import { AdMobNextGen } from 'capacitor-admob-nextgen';" >> bridge.js
-          echo "window.Capacitor = Capacitor;" >> bridge.js
-          echo "window.AdMobPlugin = AdMobNextGen;" >> bridge.js
-          
-          # Compile the bridge into the www folder
-          npx esbuild bridge.js --bundle --minify --outfile=www/native-bridge.js
 
-      - name: Create Capacitor Config
+          rsync -av \
+            --exclude=".git" \
+            --exclude=".github" \
+            --exclude="www" \
+            --exclude="android" \
+            --exclude="node_modules" \
+            --exclude="package.json" \
+            --exclude="package-lock.json" \
+            ./ www/
+
+          echo "Web files copied to www."
+
+
+      # ============================================================
+      # 6. CREATE JAVASCRIPT NATIVE BRIDGE
+      # ============================================================
+      - name: Compile Native AdMob Bridge
+        shell: bash
         run: |
-          echo '{' > capacitor.config.json
-          echo '  "appId": "${{ env.PACKAGE_NAME }}",' >> capacitor.config.json
-          echo '  "appName": "${{ env.APP_NAME }}",' >> capacitor.config.json
-          echo '  "webDir": "www",' >> capacitor.config.json
-          echo '  "bundledWebRuntime": false,' >> capacitor.config.json
-          echo '  "plugins": {' >> capacitor.config.json
-          echo '    "SplashScreen": {' >> capacitor.config.json
-          echo '      "launchShowDuration": 3000,' >> capacitor.config.json
-          echo '      "launchAutoHide": true,' >> capacitor.config.json
-          echo '      "backgroundColor": "#001a66",' >> capacitor.config.json
-          echo '      "androidSplashResourceName": "splash",' >> capacitor.config.json
-          echo '      "androidScaleType": "CENTER_CROP",' >> capacitor.config.json
-          echo '      "splashFullScreen": true,' >> capacitor.config.json
-          echo '      "splashImmersive": true,' >> capacitor.config.json
-          echo '      "showSpinner": false' >> capacitor.config.json
-          echo '    }' >> capacitor.config.json
-          echo '  }' >> capacitor.config.json
-          echo '}' >> capacitor.config.json
+          set -e
 
+          cat > bridge.js <<'EOF'
+          import { Capacitor } from '@capacitor/core';
+          import { AdMobNextGen } from 'capacitor-admob-nextgen';
+
+          window.Capacitor = Capacitor;
+          window.AdMobPlugin = AdMobNextGen;
+          EOF
+
+          npx esbuild \
+            bridge.js \
+            --bundle \
+            --minify \
+            --outfile=www/native-bridge.js
+
+          test -f www/native-bridge.js
+
+          echo "Native JavaScript bridge created."
+
+
+      # ============================================================
+      # 7. CREATE CAPACITOR CONFIG
+      # ============================================================
+      - name: Create Capacitor Config
+        shell: bash
+        run: |
+          set -e
+
+          cat > capacitor.config.json <<EOF
+          {
+            "appId": "${PACKAGE_NAME}",
+            "appName": "${APP_NAME}",
+            "webDir": "www",
+            "bundledWebRuntime": false,
+
+            "plugins": {
+              "SplashScreen": {
+                "launchShowDuration": 3000,
+                "launchAutoHide": true,
+                "backgroundColor": "#001a66",
+                "androidSplashResourceName": "splash",
+                "androidScaleType": "CENTER_CROP",
+                "splashFullScreen": true,
+                "splashImmersive": true,
+                "showSpinner": false
+              }
+            }
+          }
+          EOF
+
+          cat capacitor.config.json
+
+
+      # ============================================================
+      # 8. JAVA 21
+      # ============================================================
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+          java-version: "21"
+          distribution: "temurin"
+          cache: "gradle"
 
-      - name: Initialize & Sync Android Project
+
+      # ============================================================
+      # 9. CREATE ANDROID PROJECT
+      # ============================================================
+      - name: Initialize Android Project
+        shell: bash
         run: |
+          set -e
+
+          rm -rf android
+
           npx cap add android
-          npx cap sync android
-          
+
+
+      # ============================================================
+      # 10. RUN NEXTGEN ADMOB NATIVE SCRIPTS
+      # ============================================================
+      - name: Configure Native AdMob Android
+        shell: bash
+        run: |
+          set -e
+
           if [ -f node_modules/capacitor-admob-nextgen/scripts/admob-manifest.js ]; then
+            echo "Running AdMob manifest configuration..."
             node node_modules/capacitor-admob-nextgen/scripts/admob-manifest.js
-          fi
-          
-          if [ -f node_modules/capacitor-admob-nextgen/scripts/admob-native.js ]; then
-            node node_modules/capacitor-admob-nextgen/scripts/admob-native.js
+          else
+            echo "AdMob manifest script not found."
           fi
 
-      - name: Verify Native Ad Plugin
+          if [ -f node_modules/capacitor-admob-nextgen/scripts/admob-native.js ]; then
+            echo "Running AdMob native configuration..."
+            node node_modules/capacitor-admob-nextgen/scripts/admob-native.js
+          else
+            echo "AdMob native script not found."
+          fi
+
+
+      # ============================================================
+      # 11. SYNC CAPACITOR
+      # ============================================================
+      - name: Sync Capacitor Android
+        shell: bash
         run: |
-          echo "Checking plugins..."
+          set -e
+
+          npx cap sync android
+
+          echo "Capacitor Android sync completed."
+
+
+      # ============================================================
+      # 12. VERIFY ADMOB PLUGINS
+      # ============================================================
+      - name: Verify AdMob Plugins
+        shell: bash
+        run: |
+          set -e
+
+          echo "=========================================="
+          echo "Checking AdMob packages"
+          echo "=========================================="
+
           test -d node_modules/capacitor-admob-nextgen
           test -d node_modules/cordova-plugin-admob-nextgen-native
-          echo "Native Ad plugins found."
-          npm list capacitor-admob-nextgen cordova-plugin-admob-nextgen-native
 
-      - name: Target API Level 36 and MinSdk 24
-        run: |
-          if [ -f android/variables.gradle ]; then
-            sed -i 's/targetSdkVersion = .*/targetSdkVersion = 36/' android/variables.gradle
-            sed -i 's/compileSdkVersion = .*/compileSdkVersion = 36/' android/variables.gradle
-            sed -i 's/minSdkVersion = .*/minSdkVersion = 24/' android/variables.gradle
+          echo "capacitor-admob-nextgen:"
+          npm list capacitor-admob-nextgen --depth=0
+
+          echo ""
+          echo "cordova-plugin-admob-nextgen-native:"
+          npm list cordova-plugin-admob-nextgen-native --depth=0
+
+          echo ""
+          echo "Checking native showWith API..."
+
+          if grep -R "showWith" node_modules/cordova-plugin-admob-nextgen-native >/dev/null 2>&1; then
+            echo "showWith() API found."
+          else
+            echo "WARNING: showWith() API was not found."
           fi
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 36/' android/app/build.gradle
-          sed -i 's/compileSdkVersion .*/compileSdkVersion 36/' android/app/build.gradle
-          sed -i 's/minSdk .*/minSdk 24/' android/app/build.gradle
-          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
 
+          echo ""
+          echo "Checking native AdMob bridge..."
+
+          if grep -R "admobNextGenNative" node_modules/cordova-plugin-admob-nextgen-native >/dev/null 2>&1; then
+            echo "admobNextGenNative API found."
+          else
+            echo "WARNING: admobNextGenNative API was not found."
+          fi
+
+
+      # ============================================================
+      # 13. TARGET ANDROID API 36
+      # ============================================================
+      - name: Target API Level 36 and MinSdk 24
+        shell: bash
+        run: |
+          set -e
+
+          if [ -f android/variables.gradle ]; then
+
+            sed -i \
+              's/targetSdkVersion = .*/targetSdkVersion = 36/' \
+              android/variables.gradle
+
+            sed -i \
+              's/compileSdkVersion = .*/compileSdkVersion = 36/' \
+              android/variables.gradle
+
+            sed -i \
+              's/minSdkVersion = .*/minSdkVersion = 24/' \
+              android/variables.gradle
+
+          fi
+
+          if [ -f android/app/build.gradle ]; then
+
+            sed -i \
+              's/targetSdkVersion .*/targetSdkVersion 36/' \
+              android/app/build.gradle || true
+
+            sed -i \
+              's/compileSdkVersion .*/compileSdkVersion 36/' \
+              android/app/build.gradle || true
+
+            sed -i \
+              's/minSdk .*/minSdk 24/' \
+              android/app/build.gradle || true
+
+            sed -i \
+              's/minSdkVersion .*/minSdkVersion 24/' \
+              android/app/build.gradle || true
+
+          fi
+
+          echo "Android SDK configuration completed."
+
+
+      # ============================================================
+      # 14. DYNAMIC VERSION
+      # ============================================================
       - name: Set Dynamic Version Code
+        shell: bash
         run: |
-          sed -i 's/versionCode 1/versionCode ${{ github.run_number }}/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "1.0.${{ github.run_number }}"/' android/app/build.gradle
+          set -e
 
+          VERSION_CODE="${{ github.run_number }}"
+          VERSION_NAME="1.0.${{ github.run_number }}"
+
+          sed -i \
+            "s/versionCode 1/versionCode ${VERSION_CODE}/" \
+            android/app/build.gradle || true
+
+          sed -i \
+            "s/versionName \"1.0\"/versionName \"${VERSION_NAME}\"/" \
+            android/app/build.gradle || true
+
+          echo "Version Code: ${VERSION_CODE}"
+          echo "Version Name: ${VERSION_NAME}"
+
+
+      # ============================================================
+      # 15. HARDWARE BACK BUTTON
+      # ============================================================
       - name: Fix Android Hardware Back Button
+        shell: bash
         run: |
-          PACKAGE_PATH=$(echo "${{ env.PACKAGE_NAME }}" | tr '.' '/')
-          mkdir -p android/app/src/main/java/$PACKAGE_PATH
-          
-          cat << EOF > android/app/src/main/java/$PACKAGE_PATH/MainActivity.java
-          package ${{ env.PACKAGE_NAME }};
+          set -e
+
+          PACKAGE_PATH=$(echo "${PACKAGE_NAME}" | tr '.' '/')
+
+          mkdir -p "android/app/src/main/java/${PACKAGE_PATH}"
+
+          cat > "android/app/src/main/java/${PACKAGE_PATH}/MainActivity.java" <<EOF
+          package ${PACKAGE_NAME};
 
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
+
               @Override
               public void onBackPressed() {
-                  if (this.bridge != null && this.bridge.getWebView() != null && this.bridge.getWebView().canGoBack()) {
+
+                  if (
+                      this.bridge != null &&
+                      this.bridge.getWebView() != null &&
+                      this.bridge.getWebView().canGoBack()
+                  ) {
                       this.bridge.getWebView().goBack();
                   } else {
                       super.onBackPressed();
@@ -146,28 +379,113 @@ jobs:
           }
           EOF
 
+          echo "MainActivity configured."
+
+
+      # ============================================================
+      # 16. APP ICON
+      # ============================================================
       - name: Setup App Icon
+        shell: bash
         run: |
+          set -e
+
           if [ -f s.png ]; then
+
+            echo "Installing app icon..."
+
             rm -rf android/app/src/main/res/mipmap-anydpi-v26
-            find android/app/src/main/res -name "ic_launcher*.xml" -type f -delete
+
+            find android/app/src/main/res \
+              -name "ic_launcher*.xml" \
+              -type f \
+              -delete
+
             for dir in android/app/src/main/res/mipmap-*/; do
-              cp -f s.png "${dir}ic_launcher.png" 2>/dev/null || true
-              cp -f s.png "${dir}ic_launcher_round.png" 2>/dev/null || true
+
+              cp -f s.png \
+                "${dir}ic_launcher.png" \
+                2>/dev/null || true
+
+              cp -f s.png \
+                "${dir}ic_launcher_round.png" \
+                2>/dev/null || true
+
             done
+
+            echo "App icon installed."
+
+          else
+            echo "s.png not found. Using default Capacitor icon."
           fi
 
-      - name: Build Installable Debug APK
+
+      # ============================================================
+      # 17. FINAL CAPACITOR SYNC
+      # ============================================================
+      - name: Final Capacitor Sync
+        shell: bash
         run: |
+          set -e
+
+          npx cap sync android
+
+
+      # ============================================================
+      # 18. BUILD DEBUG APK
+      # ============================================================
+      - name: Build Installable Debug APK
+        shell: bash
+        run: |
+          set -e
+
           cd android
+
           chmod +x ./gradlew
-          ./gradlew assembleDebug
 
+          ./gradlew assembleDebug --no-daemon
+
+
+      # ============================================================
+      # 19. CHECK APK
+      # ============================================================
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -e
+
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          test -f "${APK_PATH}"
+
+          echo "=========================================="
+          echo "APK BUILD SUCCESSFUL"
+          echo "=========================================="
+
+          ls -lh "${APK_PATH}"
+
+
+      # ============================================================
+      # 20. RENAME APK
+      # ============================================================
       - name: Move & Rename APK Output
-        run: mv android/app/build/outputs/apk/debug/app-debug.apk fira-tech.apk
+        shell: bash
+        run: |
+          set -e
 
+          cp \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            fira-tech.apk
+
+          ls -lh fira-tech.apk
+
+
+      # ============================================================
+      # 21. UPLOAD APK
+      # ============================================================
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: fira-tech-apk
           path: fira-tech.apk
+          if-no-files-found: error
