@@ -62,7 +62,7 @@ html, body {
     flex: 1;
 }
 
-.back-action-btn, .search-action-btn {
+.back-action-btn, .search-action-btn, .menu-action-btn {
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -77,10 +77,21 @@ html, body {
     transition: transform 0.15s ease;
     flex-shrink: 0;
 }
-.back-action-btn:active, .search-action-btn:active { transform: scale(0.92); }
-.back-action-btn svg, .search-action-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.5; }
+.back-action-btn:active, .search-action-btn:active, .menu-action-btn:active { transform: scale(0.92); }
+.back-action-btn svg, .search-action-btn svg, .menu-action-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.5; }
 
 .header-title-text { font-size: 15px; font-weight: 800; color: #ffffff; white-space: nowrap; }
+
+.header-center-group {
+    flex: 1;
+    text-align: center;
+}
+
+.header-right-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
 .header-live-clock-badge {
     background: rgba(255, 255, 255, 0.15);
@@ -95,15 +106,14 @@ html, body {
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     text-align: center;
-    margin: 0 auto;
 }
 
-/* MAIN APP CONTENT AREA - UPDATED BOTTOM PADDING FOR OVERLAP FIX */
+/* MAIN APP CONTENT AREA - PERFECT PADDING FOR BOTTOM NAV AND NATIVE ADS */
 .app-content {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 16px 16px calc(110px + env(safe-area-inset-bottom, 32px)) 16px;
+    padding: 16px 16px calc(130px + env(safe-area-inset-bottom, 32px)) 16px;
     box-sizing: border-box;
     position: relative;
     z-index: 1;
@@ -139,7 +149,7 @@ html, body {
     box-shadow: 0 4px 12px var(--accent-glow);
 }
 
-/* BROADCASTS CONTAINER - ADDED EXTRA BOTTOM SPACING */
+/* BROADCASTS CONTAINER - EXTRA BOTTOM SPACING FOR NATIVE ADS */
 .broadcasts-container { 
     display: flex; 
     flex-direction: column; 
@@ -534,7 +544,7 @@ html, body {
 .verified-footer-shield { text-align: center; padding: 24px 0 16px 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .footer-shield-text { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
 
-/* BOTTOM NAVIGATION MENU - SAFE AREA HEIGHT ADJUSTMENT */
+/* BOTTOM NAVIGATION MENU - FIXED POSITIONING WITH SAFE AREA */
 .bottom-nav {
     position: fixed;
     bottom: 0;
@@ -545,9 +555,9 @@ html, body {
     display: flex;
     justify-content: space-around;
     align-items: flex-start;
-    padding-top: 6px;
+    padding-top: 8px;
     border-top: 1px solid var(--border-light);
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
     z-index: 1000;
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -569,6 +579,7 @@ html, body {
     background: none;
     outline: none;
     touch-action: manipulation;
+    position: relative;
 }
 
 .nav-item svg {
@@ -598,4 +609,189 @@ html, body {
 
 .nav-item.active .icon-bg {
     background-color: rgba(15, 44, 89, 0.08);
+}
+
+/* NATIVE AD STYLING - IMPROVED FOR FEED INTEGRATION */
+.native-ad-placeholder {
+    display: block;
+    width: 100%;
+    min-height: 120px;
+    margin: 16px 0;
+    padding: 0;
+    background: #ffffff;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    z-index: 1;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.mock-test-ad-block {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+}
+
+.mock-test-ad-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.mock-test-ad-badge {
+    background: #fdf2d0;
+    color: #d97706;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    margin-right: 8px;
+    border: 1px solid #fde68a;
+}
+
+.mock-test-ad-title { font-size: 15px; color: #1e293b; font-weight: 700; margin: 0; }
+.mock-test-ad-desc { font-size: 13px; color: #64748b; margin: 0; line-height: 1.4; }
+
+.mock-test-ad-btn {
+    background: #0ea5e9;
+    color: #ffffff;
+    border: none;
+    padding: 10px 0;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    width: 100%;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 12px;
+    transition: background 0.2s ease;
+}
+
+.mock-test-ad-btn:active {
+    background: #0284c7;
+}
+
+/* BANNER AD WRAPPER - FIXED POSITIONING ABOVE BOTTOM NAV */
+.ad-container-wrapper {
+    position: fixed;
+    bottom: 75px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 900;
+    padding: 8px 16px 0;
+    box-sizing: border-box;
+}
+
+.admob-preview-banner {
+    width: 320px;
+    height: 50px;
+    background: #f1c40f;
+    color: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: bold;
+    border: 2px dashed #d35400;
+    border-radius: 4px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.25);
+    text-align: center;
+    pointer-events: auto;
+}
+
+/* INTERSTITIAL AD MODAL */
+.mock-interstitial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.mock-interstitial-overlay.active {
+    display: flex;
+}
+
+.mock-interstitial-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 360px;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.mock-interstitial-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #e2e8f0;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #333;
+    transition: background 0.2s ease;
+}
+
+.mock-interstitial-close:active {
+    background: #cbd5e1;
+}
+
+/* MENU IFRAME OVERLAY */
+.menu-iframe-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.menu-iframe-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.menu-iframe-drawer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 75%;
+    height: 100%;
+    border: none;
+    background: #081B38;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
+}
+
+.menu-iframe-overlay.active .menu-iframe-drawer {
+    transform: translateX(0);
 }
