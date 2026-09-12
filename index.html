@@ -102,39 +102,15 @@
             margin: 0 auto;
         }
 
-        /* --- APP CONTENT & FILTERS --- */
+        /* --- APP CONTENT --- */
         .app-content {
             flex: 1;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            padding: 16px 16px calc(110px + env(safe-area-inset-bottom, 32px)) 16px;
+            padding: 16px 16px calc(130px + env(safe-area-inset-bottom, 32px)) 16px;
             box-sizing: border-box;
             position: relative;
             z-index: 1;
-        }
-
-        .category-filter-row { display: flex; gap: 10px; margin-bottom: 16px; width: 100%; }
-
-        .filter-pill {
-            flex: 1;
-            padding: 12px 14px;
-            border-radius: 100px;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-muted);
-            background: #ffffff;
-            border: 1px solid var(--border-light);
-            text-align: center;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .filter-pill.active-pill {
-            background: var(--primary-gradient);
-            color: #ffffff;
-            border-color: var(--primary-burgundy);
-            box-shadow: 0 4px 12px var(--accent-glow);
         }
 
         /* --- BROADCAST CARDS --- */
@@ -190,21 +166,26 @@
         .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
 
         /* --- AD MOB STYLES --- */
-        .ad-container-wrapper { position: fixed; bottom: 80px; left: 0; width: 100%; display: flex; justify-content: center; pointer-events: none; z-index: 9000; }
+        .ad-container-wrapper { position: fixed; bottom: calc(65px + env(safe-area-inset-bottom, 0px)); left: 0; width: 100%; display: flex; justify-content: center; pointer-events: none; z-index: 9000; }
         .admob-preview-banner { width: 320px; height: 50px; background: #f1c40f; color: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; border: 2px dashed #d35400; border-radius: 4px; box-shadow: 0px 4px 10px rgba(0,0,0,0.25); text-align: center; pointer-events: auto; }
         
-        /* UPDATED: Native Ad Tight Bounds */
+        /* UPDATED: Native Ad Sizing */
         .native-ad-wrapper { 
             display: flex; flex-direction: column; padding: 8px 12px; background: #ffffff; 
-            border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 14px; 
+            border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); margin-bottom: 12px; 
             border: 1px solid var(--border-light);
         }
+        .sticky-ad-container {
+            position: sticky;
+            top: 0; 
+            z-index: 50; 
+        }
         .native-ad-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
-        .native-ad-badge { background: #f59e0b; color: #fff; font-size: 9px; font-weight: 800; padding: 3px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .native-ad-badge { background: #f59e0b; color: #fff; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         .native-ad-location { font-size: 10px; color: #64748b; font-weight: 600; }
         
         .native-ad-placeholder { 
-            display: block; width: 100%; height: auto; min-height: 90px; margin: 0; padding: 0; 
+            display: block; width: 100%; height: 95px; min-height: 95px; margin: 0; padding: 0; 
             border-radius: 8px; position: relative; overflow: hidden; box-sizing: border-box; z-index: 1; pointer-events: none;
             background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
             background-size: 200% 100%;
@@ -263,7 +244,7 @@
         .nav-item.active .icon-bg { background-color: rgba(15, 44, 89, 0.08); }
     </style>
 </head>
-<body style="padding-bottom: 140px;">
+<body>
     <script src="native-bridge.js"></script>
     <div class="app-view">
         <svg class="bg-wave bg-wave-top" viewBox="0 0 375 200" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -309,10 +290,6 @@
         </header>
 
         <main class="app-content" id="mainContentArea">
-            <div class="category-filter-row" id="filterPillsRow">
-                <button class="filter-pill active-pill active" data-filter="Fira Tech Update" data-category="Fira Tech Update">Fira Tech Update</button>
-                <button class="filter-pill" data-filter="Fira Tech Tips" data-category="Fira Tech Tips">Fira Tech Tips</button>
-            </div>
             <div class="broadcasts-container" id="broadcastsContainer">
                 <div class="featured-broadcast-card"><h2 class="broadcast-title" style="font-size:14px; text-align:center; color:var(--text-muted);">Connecting to Secure Node...</h2></div>
             </div>
@@ -353,7 +330,6 @@
         const APP_NODE_NAME = "app1";
 
         let rawShikelaNewsData = {}, rawNewNewsData = {}, localCachedBroadcasts = [];
-        let currentActiveCategoryFilter = "Fira Tech Update";
         let hasTriggeredAppOpen = false, lastAppOpenTime = 0, isOpeningArticle = false, bannerCreated = false;
         let userLocationData = null;
         
@@ -469,7 +445,7 @@
 
         document.addEventListener("DOMContentLoaded", async () => {
             await fetchUserIPLocation();
-            fetchAdMobUnits(); streamLiveAdminUpdatesLog(); bindVisualInterfaceControls(); setupSearchEngineControls(); initiateLiveInterfaceClocks(); setupAppResumeAdListener();
+            fetchAdMobUnits(); streamLiveAdminUpdatesLog(); setupSearchEngineControls(); initiateLiveInterfaceClocks(); setupAppResumeAdListener(); setupScrollAdReloadLogic();
             const closeBtn = document.getElementById("closePopupBtn");
             if (closeBtn) closeBtn.addEventListener("click", () => {
                 const popup = document.getElementById("customPopupModule");
@@ -547,8 +523,8 @@
             if (isNativeApp() && AdPlugin) {
                 try {
                     if (!bannerCreated) {
-                        /* UPDATED: margin is set to 70px to force the native banner physically above the HTML navigation bar */
-                        await AdPlugin.createBanner({ adUnitId: window.globalAdConfig.bannerId, isAutoShow: true, position: "BOTTOM", adSize: "BANNER", isOverlapping: false, margin: 70 });
+                        /* OVERLAPPING: TRUE and MARGIN: 65 pushes the ad directly over the fixed bottom menu. */
+                        await AdPlugin.createBanner({ adUnitId: window.globalAdConfig.bannerId, isAutoShow: true, position: "BOTTOM", adSize: "BANNER", isOverlapping: true, margin: 65 });
                         bannerCreated = true;
                     } else if (AdPlugin.showBanner) { await AdPlugin.showBanner(); }
                 } catch (e) { console.error("Banner Ad Failed:", e); }
@@ -686,55 +662,82 @@
             });
         };
 
+        function setupScrollAdReloadLogic() {
+            let lastRefreshCount = 0;
+            let scrollTimeout;
+            const contentArea = document.getElementById("mainContentArea");
+            if (!contentArea) return;
+
+            contentArea.addEventListener('scroll', () => {
+                if (scrollTimeout) return;
+                scrollTimeout = setTimeout(() => {
+                    const cards = document.querySelectorAll('.featured-broadcast-card:not(.native-ad-wrapper)');
+                    let passedCount = 0;
+                    const stickyAd = document.querySelector('.sticky-ad-container');
+                    const adBottom = stickyAd ? stickyAd.getBoundingClientRect().bottom : 150;
+
+                    cards.forEach(card => {
+                        if (card.getBoundingClientRect().top < adBottom) {
+                            passedCount++;
+                        }
+                    });
+
+                    // Refresh logic: triggered when new multiple of 3 items pass underneath
+                    if (passedCount >= lastRefreshCount + 3) {
+                        lastRefreshCount = passedCount - (passedCount % 3); 
+                        const adPlaceholder = document.getElementById('native-feed-ad-sticky');
+                        if (adPlaceholder && isNativeApp() && getAdMobPlugin() && window.globalAdConfig?.nativeId) {
+                             showNativeAdForSlot(adPlaceholder);
+                        }
+                    }
+                    scrollTimeout = null;
+                }, 250); // Slight delay for performance
+            });
+        }
+
         async function renderFilteredBroadcasts() {
             const container = document.getElementById("broadcastsContainer");
             if (!container) return;
             await clearActiveFeedAds();
             initializeNativeAdObserver();
             container.innerHTML = "";
-            const filtered = localCachedBroadcasts.filter(item => (item.category || "").trim().toLowerCase() === currentActiveCategoryFilter.trim().toLowerCase());
+            const filtered = localCachedBroadcasts; // Shows all items instead of filtering by category
             
             if (filtered.length === 0) {
                 container.innerHTML = `<article class="featured-broadcast-card"><h2 class="broadcast-title">No updates posted today.</h2></article>`;
                 return;
             }
 
-            let currentPostCount = 0;
+            const nativeEnabled = window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId && isNativeApp() && getAdMobPlugin();
+            if (nativeEnabled) {
+                const adDivId = `native-feed-ad-sticky`;
+                const nativeAdContainer = document.createElement("article");
+                nativeAdContainer.className = "native-ad-wrapper sticky-ad-container";
+                
+                // IP Address removed. Shows only City and Country.
+                const locationText = userLocationData ? `${userLocationData.city}, ${userLocationData.country}` : "Localized Ad";
+                
+                nativeAdContainer.innerHTML = `
+                    <div class="native-ad-header">
+                        <span class="native-ad-badge">Advertisement</span>
+                        <span class="native-ad-location">${locationText}</span>
+                    </div>
+                    <div id="${adDivId}" class="native-ad-placeholder"></div>
+                `;
+                
+                container.appendChild(nativeAdContainer);
+
+                if (window.nativeAdObserver) {
+                    const adPlaceholderNode = nativeAdContainer.querySelector(`#${adDivId}`);
+                    window.nativeAdObserver.observe(adPlaceholderNode);
+                }
+            }
+
             filtered.forEach(item => {
-                currentPostCount++;
                 const card = document.createElement("article");
                 card.className = "featured-broadcast-card";
                 card.innerHTML = buildSingleNewsCardHTML(item);
                 container.appendChild(card);
-
-                /* UPDATED: Inject native ads dynamically every 2 posts to allow scroll logic */
-                if (currentPostCount % 2 === 0 && currentPostCount !== filtered.length) {
-                    const nativeEnabled = window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId && isNativeApp() && getAdMobPlugin();
-                    
-                    if (nativeEnabled) {
-                        const adDivId = `native-feed-ad-${currentPostCount}`;
-                        const nativeAdContainer = document.createElement("article");
-                        nativeAdContainer.className = "native-ad-wrapper";
-                        
-                        /* Removed IP address format, only shows country based on IP fetch */
-                        const locationText = userLocationData ? `${userLocationData.country}` : "Advertisement";
-                        
-                        nativeAdContainer.innerHTML = `
-                            <div class="native-ad-header">
-                                <span class="native-ad-badge">Sponsored</span>
-                                <span class="native-ad-location">${locationText}</span>
-                            </div>
-                            <div id="${adDivId}" class="native-ad-placeholder"></div>
-                        `;
-                        
-                        container.appendChild(nativeAdContainer);
-
-                        if (window.nativeAdObserver) {
-                            const adPlaceholderNode = nativeAdContainer.querySelector(`#${adDivId}`);
-                            window.nativeAdObserver.observe(adPlaceholderNode);
-                        }
-                    }
-                }
             });
         }
 
@@ -767,17 +770,6 @@
                 card.className = "featured-broadcast-card";
                 card.innerHTML = buildSingleNewsCardHTML(item);
                 resultsArea.appendChild(card);
-            });
-        }
-
-        function bindVisualInterfaceControls() {
-            document.querySelectorAll(".filter-btn").forEach(pill => {
-                pill.addEventListener("click", function() {
-                    document.querySelectorAll(".filter-btn").forEach(p => p.classList.remove("active-pill", "active"));
-                    this.classList.add("active-pill", "active");
-                    currentActiveCategoryFilter = this.getAttribute("data-filter") || "Fira Tech Update";
-                    renderFilteredBroadcasts();
-                });
             });
         }
 
