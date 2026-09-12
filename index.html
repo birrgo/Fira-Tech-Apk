@@ -107,7 +107,7 @@
             flex: 1;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            padding: 16px 16px calc(150px + env(safe-area-inset-bottom, 32px)) 16px; /* Increased padding for banner clearance */
+            padding: 16px 16px calc(130px + env(safe-area-inset-bottom, 32px)) 16px; 
             box-sizing: border-box;
             position: relative;
             z-index: 1;
@@ -166,24 +166,19 @@
         .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
 
         /* --- AD MOB STYLES --- */
-        .ad-container-wrapper { position: fixed; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); left: 0; width: 100%; display: flex; justify-content: center; pointer-events: none; z-index: 9000; }
+        .ad-container-wrapper { position: fixed; bottom: calc(65px + env(safe-area-inset-bottom, 0px)); left: 0; width: 100%; display: flex; justify-content: center; pointer-events: none; z-index: 9000; }
         .admob-preview-banner { width: 320px; height: 50px; background: #f1c40f; color: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; border: 2px dashed #d35400; border-radius: 4px; box-shadow: 0px 4px 10px rgba(0,0,0,0.25); text-align: center; pointer-events: auto; }
         
-        /* UPDATED: Native Ad Sizing */
+        /* ADMOB COMPLIANT: Native Ad Sizing */
         .native-ad-wrapper { 
             display: flex; flex-direction: column; padding: 8px 12px; background: #ffffff; 
             border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); margin-bottom: 12px; 
-            border: 1px solid var(--border-light); transition: opacity 0.3s ease;
+            border: 1px solid var(--border-light); 
         }
-        .sticky-ad-container {
-            position: sticky;
-            top: 0; 
-            z-index: 50; 
-        }
+        
         .native-ad-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
         .native-ad-badge { background: #f59e0b; color: #fff; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         .native-ad-location { font-size: 10px; color: #64748b; font-weight: 600; }
-        .native-ad-close { display: none; background: #f1f5f9; border: none; font-size: 14px; font-weight: 800; color: #475569; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; line-height: 1; align-items: center; justify-content: center; margin-left: 8px; }
         
         .native-ad-placeholder { 
             display: block; width: 100%; height: 95px; min-height: 95px; margin: 0; padding: 0; 
@@ -446,26 +441,12 @@
 
         document.addEventListener("DOMContentLoaded", async () => {
             await fetchUserIPLocation();
-            fetchAdMobUnits(); streamLiveAdminUpdatesLog(); setupSearchEngineControls(); initiateLiveInterfaceClocks(); setupAppResumeAdListener(); setupScrollAdReloadLogic();
+            fetchAdMobUnits(); streamLiveAdminUpdatesLog(); setupSearchEngineControls(); initiateLiveInterfaceClocks(); setupAppResumeAdListener();
             
             const closeBtn = document.getElementById("closePopupBtn");
             if (closeBtn) closeBtn.addEventListener("click", () => {
                 const popup = document.getElementById("customPopupModule");
                 if (popup) popup.classList.remove("show-popup");
-            });
-
-            // Native Ad Dismiss Listener
-            document.addEventListener('click', (e) => {
-                if (e.target && e.target.classList.contains('native-ad-close')) {
-                    const nativeWrapper = e.target.closest('.native-ad-wrapper');
-                    if (nativeWrapper) {
-                        nativeWrapper.style.opacity = '0';
-                        setTimeout(() => {
-                            nativeWrapper.style.display = 'none';
-                            hideCurrentNativeAd();
-                        }, 300);
-                    }
-                }
             });
         });
 
@@ -494,7 +475,7 @@
         }
 
         async function triggerAppOpenAdStart() {
-            // Only trigger on first cold load of index.html by checking sessionStorage
+            // ADMOB COMPLIANT: Only trigger on first cold load of index.html by checking sessionStorage to avoid ad spamming on navigation
             if (sessionStorage.getItem("hasTriggeredAppOpenSession")) return; 
             sessionStorage.setItem("hasTriggeredAppOpenSession", "true");
             
@@ -543,8 +524,9 @@
             if (isNativeApp() && AdPlugin) {
                 try {
                     if (!bannerCreated) {
-                        // Margin set to 72 to float comfortably ABOVE the bottom menu bar
-                        await AdPlugin.createBanner({ adUnitId: window.globalAdConfig.bannerId, isAutoShow: true, position: "BOTTOM", adSize: "BANNER", isOverlapping: true, margin: 72 });
+                        // ADMOB COMPLIANT: Standard banner creation. 
+                        // Removed `isOverlapping` and `margin` hacks to prevent "Accidental Clicks" near navigation
+                        await AdPlugin.createBanner({ adUnitId: window.globalAdConfig.bannerId, isAutoShow: true, position: "BOTTOM", adSize: "BANNER" });
                         bannerCreated = true;
                     } else if (AdPlugin.showBanner) { await AdPlugin.showBanner(); }
                 } catch (e) { console.error("Banner Ad Failed:", e); }
@@ -682,41 +664,6 @@
             });
         };
 
-        function setupScrollAdReloadLogic() {
-            let lastRefreshCount = 0;
-            let scrollTimeout;
-            const contentArea = document.getElementById("mainContentArea");
-            if (!contentArea) return;
-
-            contentArea.addEventListener('scroll', () => {
-                if (scrollTimeout) return;
-                scrollTimeout = setTimeout(() => {
-                    const cards = document.querySelectorAll('.featured-broadcast-card:not(.native-ad-wrapper)');
-                    let passedCount = 0;
-                    const stickyAd = document.querySelector('.sticky-ad-container');
-                    
-                    if (stickyAd) {
-                        const adBottom = stickyAd.getBoundingClientRect().bottom;
-                        cards.forEach(card => {
-                            if (card.getBoundingClientRect().top < adBottom) {
-                                passedCount++;
-                            }
-                        });
-
-                        // Refresh ad logic: triggers when new multiple of 4 items pass underneath
-                        if (passedCount >= lastRefreshCount + 4) {
-                            lastRefreshCount = passedCount - (passedCount % 4); 
-                            const adPlaceholder = document.getElementById('native-feed-ad-sticky');
-                            if (adPlaceholder && isNativeApp() && getAdMobPlugin() && window.globalAdConfig?.nativeId) {
-                                 showNativeAdForSlot(adPlaceholder);
-                            }
-                        }
-                    }
-                    scrollTimeout = null;
-                }, 300);
-            });
-        }
-
         async function renderFilteredBroadcasts() {
             const container = document.getElementById("broadcastsContainer");
             if (!container) return;
@@ -732,19 +679,21 @@
 
             const nativeEnabled = window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId && isNativeApp() && getAdMobPlugin();
             if (nativeEnabled) {
-                const adDivId = `native-feed-ad-sticky`;
+                const adDivId = `native-feed-ad-inline`;
                 const nativeAdContainer = document.createElement("article");
-                nativeAdContainer.className = "native-ad-wrapper sticky-ad-container";
+                
+                // ADMOB COMPLIANT: Native Ad naturally scrolls with content. "Sticky" behavior removed to prevent invalid impressions.
+                nativeAdContainer.className = "native-ad-wrapper"; 
                 
                 const locationText = userLocationData ? `${userLocationData.city}, ${userLocationData.country}` : "Localized Ad";
                 
+                // ADMOB COMPLIANT: Removed custom "X" dismiss buttons.
                 nativeAdContainer.innerHTML = `
                     <div class="native-ad-header">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span class="native-ad-badge">Advertisement</span>
                             <span class="native-ad-location">${locationText}</span>
                         </div>
-                        <button class="native-ad-close" id="closeNativeAdBtn" title="Dismiss Ad">✕</button>
                     </div>
                     <div id="${adDivId}" class="native-ad-placeholder"></div>
                 `;
@@ -755,12 +704,6 @@
                     const adPlaceholderNode = nativeAdContainer.querySelector(`#${adDivId}`);
                     window.nativeAdObserver.observe(adPlaceholderNode);
                 }
-
-                // Show the 'X' button strictly after 1 minute (60,000ms)
-                setTimeout(() => {
-                    const closeBtn = document.getElementById('closeNativeAdBtn');
-                    if (closeBtn) closeBtn.style.display = 'flex';
-                }, 60000);
             }
 
             filtered.forEach(item => {
