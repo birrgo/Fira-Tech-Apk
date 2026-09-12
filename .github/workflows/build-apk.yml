@@ -2,7 +2,8 @@ name: Convert PWA to Android APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -13,212 +14,131 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: '20'
 
-      - name: Install Dependencies
-        shell: bash
+      - name: Install Node Dependencies & Esbuild
         run: |
-          set -e
-          node --version
-          npm --version
+          if [ ! -f package.json ]; then npm init -y; fi
+          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/splash-screen@8 capacitor-admob-nextgen@1.2.9 cordova-plugin-admob-nextgen-native esbuild
 
-          if [ ! -f package.json ]; then
-            npm init -y
-          fi
-
-          npm install \
-            @capacitor/core@8 \
-            @capacitor/cli@8 \
-            @capacitor/android@8 \
-            @capacitor/splash-screen@8 \
-            capacitor-admob-nextgen@1.2.9 \
-            cordova-plugin-admob-nextgen \
-            cordova-plugin-admob-nextgen-native \
-            esbuild
-
-      - name: Configure AdMob
-        shell: bash
+      - name: Configure NextGen Ads
         run: |
-          set -e
-          node <<'NODE'
-          const fs = require("fs");
-          const file = "package.json";
-          const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
-
+          node -e "
+          const fs = require('fs');
+          let pkg = JSON.parse(fs.readFileSync('package.json'));
+          
           pkg.admob = {
-            androidAppId: process.env.ADMOB_APP_ID,
-            enableNativeAds: {
-              android: true,
-              ios: false
-            }
+            androidAppId: '${{ env.ADMOB_APP_ID }}',
+            enableNativeAds: { android: true }
           };
+          
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+          "
 
-          pkg.scripts = pkg.scripts || {};
-          pkg.scripts["capacitor:sync:after"] =
-            "node node_modules/capacitor-admob-nextgen/scripts/admob-manifest.js && node node_modules/capacitor-admob-nextgen/scripts/admob-native.js";
-
-          fs.writeFileSync(
-            file,
-            JSON.stringify(pkg, null, 2) + "\n"
-          );
-          NODE
-
-          echo "AdMob TEST APP ID configured."
-          echo "Ad unit IDs will come from Firebase."
-
-      - name: Prepare Web Files
-        shell: bash
+      - name: Bundle Web Files & Compile Native Bridge
         run: |
-          set -e
           rm -rf www
           mkdir -p www
-
-          rsync -a \
-            --exclude=".git" \
-            --exclude=".github" \
-            --exclude="www" \
-            --exclude="android" \
-            --exclude="node_modules" \
-            --exclude="package.json" \
-            --exclude="package-lock.json" \
-            ./ www/
-
-          test -f www/index.html
-
-      - name: Create Native Bridge
-        shell: bash
-        run: |
-          set -e
-
-          cat > bridge.js <<'EOF'
-          import { Capacitor } from '@capacitor/core';
-          import { AdMobNextGen } from 'capacitor-admob-nextgen';
-
-          window.Capacitor = Capacitor;
-          window.AdMobPlugin = AdMobNextGen;
-          EOF
-
-          npx esbuild bridge.js \
-            --bundle \
-            --minify \
-            --outfile=www/native-bridge.js
-
-          test -f www/native-bridge.js
+          # Copy all web files except dev files
+          rsync -av --exclude='.git' --exclude='.github' --exclude='www' --exclude='node_modules' ./ www/
+          
+          # Create a Javascript Bridge to connect HTML to the Android App
+          echo "import { Capacitor } from '@capacitor/core';" > bridge.js
+          echo "import { AdMobNextGen } from 'capacitor-admob-nextgen';" >> bridge.js
+          echo "window.Capacitor = Capacitor;" >> bridge.js
+          echo "window.AdMobPlugin = AdMobNextGen;" >> bridge.js
+          
+          # Compile the bridge into the www folder
+          npx esbuild bridge.js --bundle --minify --outfile=www/native-bridge.js
 
       - name: Create Capacitor Config
-        shell: bash
         run: |
-          set -e
+          echo '{' > capacitor.config.json
+          echo '  "appId": "${{ env.PACKAGE_NAME }}",' >> capacitor.config.json
+          echo '  "appName": "${{ env.APP_NAME }}",' >> capacitor.config.json
+          echo '  "webDir": "www",' >> capacitor.config.json
+          echo '  "bundledWebRuntime": false,' >> capacitor.config.json
+          echo '  "plugins": {' >> capacitor.config.json
+          echo '    "SplashScreen": {' >> capacitor.config.json
+          echo '      "launchShowDuration": 3000,' >> capacitor.config.json
+          echo '      "launchAutoHide": true,' >> capacitor.config.json
+          echo '      "backgroundColor": "#001a66",' >> capacitor.config.json
+          echo '      "androidSplashResourceName": "splash",' >> capacitor.config.json
+          echo '      "androidScaleType": "CENTER_CROP",' >> capacitor.config.json
+          echo '      "splashFullScreen": true,' >> capacitor.config.json
+          echo '      "splashImmersive": true,' >> capacitor.config.json
+          echo '      "showSpinner": false' >> capacitor.config.json
+          echo '    }' >> capacitor.config.json
+          echo '  }' >> capacitor.config.json
+          echo '}' >> capacitor.config.json
 
-          cat > capacitor.config.json <<EOF
-          {
-            "appId": "${PACKAGE_NAME}",
-            "appName": "${APP_NAME}",
-            "webDir": "www",
-            "bundledWebRuntime": false,
-            "plugins": {
-              "SplashScreen": {
-                "launchShowDuration": 3000,
-                "launchAutoHide": true,
-                "backgroundColor": "#001a66",
-                "androidSplashResourceName": "splash",
-                "androidScaleType": "CENTER_CROP",
-                "splashFullScreen": true,
-                "splashImmersive": true,
-                "showSpinner": false
-              }
-            }
-          }
-          EOF
-
-      - name: Setup Java 21
-        uses: actions/setup-java@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
-          java-version: "21"
-          distribution: "temurin"
+          java-version: '21'
+          distribution: 'temurin'
           cache: gradle
 
-      - name: Add Android
-        shell: bash
+      - name: Initialize & Sync Android Project
         run: |
-          set -e
           npx cap add android
-
-      - name: Verify AdMob Plugins
-        shell: bash
-        run: |
-          set -e
-
-          test -d node_modules/capacitor-admob-nextgen
-          test -d node_modules/cordova-plugin-admob-nextgen
-          test -d node_modules/cordova-plugin-admob-nextgen-native
-
-          grep -R "showWith" \
-            node_modules/cordova-plugin-admob-nextgen-native \
-            >/dev/null
-
-          echo "All AdMob NextGen plugins verified."
-
-      - name: Configure Android
-        shell: bash
-        run: |
-          set -e
-
-          if [ -f android/variables.gradle ]; then
-            sed -i -E \
-              's/compileSdkVersion = [0-9]+/compileSdkVersion = 36/' \
-              android/variables.gradle || true
-
-            sed -i -E \
-              's/targetSdkVersion = [0-9]+/targetSdkVersion = 36/' \
-              android/variables.gradle || true
-
-            sed -i -E \
-              's/minSdkVersion = [0-9]+/minSdkVersion = 24/' \
-              android/variables.gradle || true
+          npx cap sync android
+          
+          if [ -f node_modules/capacitor-admob-nextgen/scripts/admob-manifest.js ]; then
+            node node_modules/capacitor-admob-nextgen/scripts/admob-manifest.js
+          fi
+          
+          if [ -f node_modules/capacitor-admob-nextgen/scripts/admob-native.js ]; then
+            node node_modules/capacitor-admob-nextgen/scripts/admob-native.js
           fi
 
-          VERSION_CODE="${{ github.run_number }}"
-          VERSION_NAME="1.0.${{ github.run_number }}"
-
-          sed -i -E \
-            "s/versionCode [0-9]+/versionCode ${VERSION_CODE}/" \
-            android/app/build.gradle || true
-
-          sed -i -E \
-            "s/versionName \"[^\"]+\"/versionName \"${VERSION_NAME}\"/" \
-            android/app/build.gradle || true
-
-      - name: Configure MainActivity
-        shell: bash
+      - name: Verify Native Ad Plugin
         run: |
-          set -e
+          echo "Checking plugins..."
+          test -d node_modules/capacitor-admob-nextgen
+          test -d node_modules/cordova-plugin-admob-nextgen-native
+          echo "Native Ad plugins found."
+          npm list capacitor-admob-nextgen cordova-plugin-admob-nextgen-native
 
-          PACKAGE_PATH=$(echo "$PACKAGE_NAME" | tr '.' '/')
-          MAIN="android/app/src/main/java/${PACKAGE_PATH}/MainActivity.java"
+      - name: Target API Level 36 and MinSdk 24
+        run: |
+          if [ -f android/variables.gradle ]; then
+            sed -i 's/targetSdkVersion = .*/targetSdkVersion = 36/' android/variables.gradle
+            sed -i 's/compileSdkVersion = .*/compileSdkVersion = 36/' android/variables.gradle
+            sed -i 's/minSdkVersion = .*/minSdkVersion = 24/' android/variables.gradle
+          fi
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 36/' android/app/build.gradle
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 36/' android/app/build.gradle
+          sed -i 's/minSdk .*/minSdk 24/' android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
 
-          mkdir -p "$(dirname "$MAIN")"
+      - name: Set Dynamic Version Code
+        run: |
+          sed -i 's/versionCode 1/versionCode ${{ github.run_number }}/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "1.0.${{ github.run_number }}"/' android/app/build.gradle
 
-          cat > "$MAIN" <<EOF
-          package ${PACKAGE_NAME};
+      - name: Fix Android Hardware Back Button
+        run: |
+          PACKAGE_PATH=$(echo "${{ env.PACKAGE_NAME }}" | tr '.' '/')
+          mkdir -p android/app/src/main/java/$PACKAGE_PATH
+          
+          cat << EOF > android/app/src/main/java/$PACKAGE_PATH/MainActivity.java
+          package ${{ env.PACKAGE_NAME }};
 
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
               @Override
               public void onBackPressed() {
-                  if (bridge != null &&
-                      bridge.getWebView() != null &&
-                      bridge.getWebView().canGoBack()) {
-                      bridge.getWebView().goBack();
+                  if (this.bridge != null && this.bridge.getWebView() != null && this.bridge.getWebView().canGoBack()) {
+                      this.bridge.getWebView().goBack();
                   } else {
                       super.onBackPressed();
                   }
@@ -227,95 +147,27 @@ jobs:
           EOF
 
       - name: Setup App Icon
-        shell: bash
         run: |
-          set -e
-
           if [ -f s.png ]; then
-            find android/app/src/main/res \
-              -name "ic_launcher*.xml" \
-              -type f \
-              -delete
-
+            rm -rf android/app/src/main/res/mipmap-anydpi-v26
+            find android/app/src/main/res -name "ic_launcher*.xml" -type f -delete
             for dir in android/app/src/main/res/mipmap-*/; do
               cp -f s.png "${dir}ic_launcher.png" 2>/dev/null || true
               cp -f s.png "${dir}ic_launcher_round.png" 2>/dev/null || true
             done
           fi
 
-      - name: Capacitor Sync
-        shell: bash
+      - name: Build Installable Debug APK
         run: |
-          set -e
-          npx cap sync android
-
-      - name: Verify AdMob Manifest
-        shell: bash
-        run: |
-          set -e
-
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-
-          test -f "$MANIFEST"
-
-          grep -q \
-            "com.google.android.gms.ads.APPLICATION_ID" \
-            "$MANIFEST"
-
-          echo "AdMob APPLICATION_ID found."
-
-      - name: Build Debug APK
-        shell: bash
-        run: |
-          set -e
-
           cd android
-          ./gradlew assembleDebug --no-daemon
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
 
-      - name: Verify APK
-        shell: bash
-        run: |
-          set -e
+      - name: Move & Rename APK Output
+        run: mv android/app/build/outputs/apk/debug/app-debug.apk fira-tech.apk
 
-          echo "Searching for APK..."
-          find android/app/build/outputs \
-            -type f \
-            -name "*.apk" \
-            -print
-
-          APK=$(find android/app/build/outputs \
-            -type f \
-            -name "*.apk" | head -n 1)
-
-          if [ -z "$APK" ]; then
-            echo "ERROR: APK was not created."
-            exit 1
-          fi
-
-          echo "APK found:"
-          ls -lh "$APK"
-
-      - name: Prepare APK Artifact
-        shell: bash
-        run: |
-          set -e
-
-          mkdir -p release
-
-          APK=$(find android/app/build/outputs \
-            -type f \
-            -name "*.apk" | head -n 1)
-
-          test -n "$APK"
-
-          cp "$APK" release/Fira-Tech-debug.apk
-
-          ls -lh release/Fira-Tech-debug.apk
-
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Fira-Tech-APK
-          path: release/Fira-Tech-debug.apk
-          if-no-files-found: error
-          retention-days: 30
+          name: fira-tech-apk
+          path: fira-tech.apk
