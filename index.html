@@ -21,8 +21,9 @@
         }
         .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
 
+        /* Banner ad container pushed up to sit above the bottom navigation bar */
         .ad-container-wrapper {
-            position: fixed; bottom: 60px; left: 0; width: 100%;
+            position: fixed; bottom: 80px; left: 0; width: 100%;
             display: flex; justify-content: center; pointer-events: none; z-index: 9000;
         }
         .admob-preview-banner {
@@ -32,64 +33,19 @@
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.25); text-align: center; pointer-events: auto;
         }
         
-        /* Professional Native Ad Styling - No Gaps, Clean Integration */
+        /* Real Native Ad Placeholder */
         .native-ad-placeholder {
             display: block;
             width: 100%;
-            min-height: 0;
-            max-height: none;
+            min-height: 120px;
             margin: 12px 0;
             padding: 0;
             background: transparent;
-            border-radius: 0;
-            position: relative;
-            overflow: visible;
-            box-sizing: border-box;
-            box-shadow: none;
-            z-index: 1; 
-            border: none;
-        }
-
-        .mock-test-ad-block {
-            display: flex;
-            flex-direction: column;
-            padding: 16px;
-            box-sizing: border-box;
-            width: 100%;
-            background: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-        }
-        .mock-test-ad-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .mock-test-ad-badge {
-            background: #fdf2d0;
-            color: #d97706;
-            font-size: 11px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 700;
-            margin-right: 8px;
-            border: 1px solid #fde68a;
-        }
-        .mock-test-ad-title { font-size: 15px; color: #1e293b; font-weight: 700; margin: 0; }
-        .mock-test-ad-desc { font-size: 13px; color: #64748b; margin: 0; line-height: 1.4; }
-        .mock-test-ad-btn {
-            background: #0ea5e9;
-            color: #ffffff;
-            border: none;
-            padding: 10px 0;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            width: 100%;
-            cursor: pointer;
-            text-align: center;
-            margin-top: 12px;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+            z-index: 1; 
         }
 
         .mock-interstitial-overlay {
@@ -110,7 +66,7 @@
         }
     </style>
 </head>
-<body style="padding-bottom: 60px;">
+<body style="padding-bottom: 140px;">
     <script src="native-bridge.js"></script>
 
     <div class="app-view">
@@ -154,7 +110,7 @@
 
         <header class="nav-header" style="display: flex; align-items: center; justify-content: space-between;">
             <div class="header-left-group" style="display: flex; align-items: center;">
-                <button type="button" class="menu-action-btn" id="openMenuIframeBtn" style="background: none; border: none; cursor: pointer; color: inherit; padding: 0; display: flex; align-items: center;">
+                <button type="button" class="menu-action-btn" id="openMenuIframeBtn" style="background: none; border: none; cursor: pointer; color: inherit; padding: 0; display: flex; align-items: center; justify-content: center;">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -173,12 +129,6 @@
             </div>
         </header>
 
-        <div class="ad-container-wrapper" id="adContainerWrapper" style="display: none;">
-            <div class="admob-preview-banner" id="admobPreviewBanner">
-                Home Banner Ad Preview Loading...
-            </div>
-        </div>
-
         <main class="app-content" id="mainContentArea">
             <div class="category-filter-row filter-btn-grid" id="filterPillsRow">
                 <button class="filter-pill filter-btn active-pill active" data-filter="Fira Tech Update" data-category="Fira Tech Update">Fira Tech Update</button>
@@ -196,6 +146,12 @@
             </footer>
         </main>
 
+        <div class="ad-container-wrapper" id="adContainerWrapper" style="display: none;">
+            <div class="admob-preview-banner" id="admobPreviewBanner">
+                Home Banner Ad Preview Loading...
+            </div>
+        </div>
+
         <div class="mock-interstitial-overlay" id="mockInterstitialModal">
             <div class="mock-interstitial-card">
                 <button class="mock-interstitial-close" id="closeMockInterstitialBtn">✕</button>
@@ -204,7 +160,7 @@
                 <h3 style="margin: 0 0 8px; color: #1e293b;">AdMob Interstitial Ad Preview</h3>
                 <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;" id="mockInterstitialIdText">ID: Loading...</p>
                 <p style="font-size: 13px; color: #475569;">In the generated APK, a full-screen Google AdMob ad will take over the screen here.</p>
-                <button id="mockInterstitialContinueBtn" style="width: 100%; margin-top: 15px; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Continue</button>
+                <button id="mockInterstitialContinueBtn" style="width: 100%; margin-top: 15px; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Continue to Article</button>
             </div>
         </div>
 
@@ -368,26 +324,6 @@
             });
         });
 
-        function getNativeAdHTML(title = "Advertisement") {
-            const adId = window.globalAdConfig?.nativeId || 'Loading...';
-            return `
-                <div class="mock-test-ad-block">
-                    <div class="mock-test-ad-header">
-                        <span class="mock-test-ad-badge">Ad</span>
-                        <span style="font-size: 12px; color: #64748b;">${title}</span>
-                    </div>
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                        <div style="font-size: 32px;">🌐</div>
-                        <div>
-                            <div class="mock-test-ad-title">Join the reliable network!</div>
-                            <p class="mock-test-ad-desc">Stay connected to your loved ones. (ID: ${adId})</p>
-                        </div>
-                    </div>
-                    <button class="mock-test-ad-btn">Open</button>
-                </div>
-            `;
-        }
-
         function fetchAdMobUnits() {
             const adManagerRef = ref(db, `${APP_NODE_NAME}/adManager`);
             onValue(adManagerRef, (snapshot) => {
@@ -479,7 +415,7 @@
                             position: 'BOTTOM', 
                             adSize: 'BANNER', 
                             isOverlapping: false,
-                            margin: 60
+                            margin: 85 // Raised margin to ensure it strictly sits above the bottom nav bar
                         });
                         bannerCreated = true;
                     } else if (AdPlugin.showBanner) { await AdPlugin.showBanner(); }
@@ -650,7 +586,6 @@
                 return;
             }
 
-            const AdPlugin = getAdMobPlugin();
             let currentPostCount = 0;
             
             filtered.forEach((item) => {
@@ -660,21 +595,18 @@
                 container.appendChild(card);
                 currentPostCount++;
 
-                // Insert ad after every 3 posts instead of 2
-                if (currentPostCount % 3 === 0) {
-                    if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId) {
+                // Conditionally insert real native ads natively only (no mock placeholders) after every 2 items
+                if (currentPostCount % 2 === 0) {
+                    if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId && isNativeApp() && getAdMobPlugin()) {
                         const adDivId = `native-feed-ad-${currentPostCount}`;
-                        const nativeAdContainer = document.createElement('div');
-                        nativeAdContainer.id = adDivId;
-                        nativeAdContainer.className = 'native-ad-placeholder'; 
+                        const nativeAdCard = document.createElement('div');
+                        nativeAdCard.id = adDivId;
+                        nativeAdCard.className = 'native-ad-placeholder'; 
                         
-                        container.appendChild(nativeAdContainer);
+                        container.appendChild(nativeAdCard);
                         
-                        if (isNativeApp() && getAdMobPlugin() && window.nativeAdObserver) {
-                            window.nativeAdObserver.observe(nativeAdContainer);
-                        } else {
-                            // Web/preview mode: show mock ad
-                            nativeAdContainer.innerHTML = getNativeAdHTML("Sponsored");
+                        if (window.nativeAdObserver) {
+                            window.nativeAdObserver.observe(nativeAdCard);
                         }
                     }
                 }
