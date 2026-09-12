@@ -2,272 +2,86 @@ name: Convert PWA to Android APK
 
 on:
   push:
-    branches:
-      - main
-
+    branches: [main]
   workflow_dispatch:
 
 env:
-  # ============================================================
-  # APP INFORMATION
-  # ============================================================
   APP_NAME: "Fira Tech"
   PACKAGE_NAME: "com.firatech.app"
-
-  # ============================================================
-  # GOOGLE OFFICIAL ADMOB TEST APP ID
-  #
-  # IMPORTANT:
-  # This is ONLY the AdMob APPLICATION ID.
-  #
-  # DO NOT put Native/Banner/Interstitial ad-unit IDs here.
-  # Those IDs are loaded from Firebase by your HTML/JS.
-  # ============================================================
   ADMOB_APP_ID: "ca-app-pub-3940256099942544~3347511713"
 
-
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-
-      # ========================================================
-      # 1. CHECKOUT
-      # ========================================================
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-
-      # ========================================================
-      # 2. NODE.JS 22
-      #
-      # Capacitor 8 requires Node.js 22+
-      # ========================================================
       - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
-
-      # ========================================================
-      # 3. INSTALL DEPENDENCIES
-      #
-      # IMPORTANT:
-      #
-      # capacitor-admob-nextgen
-      #       ↓
-      # Capacitor integration
-      #
-      # cordova-plugin-admob-nextgen
-      #       ↓
-      # Core GMA NextGen engine
-      #
-      # cordova-plugin-admob-nextgen-native
-      #       ↓
-      # Container-based Native Ads
-      #
-      # The native extension REQUIRES the core plugin.
-      # ========================================================
       - name: Install Dependencies
         shell: bash
         run: |
           set -e
-
-          echo "=========================================="
-          echo "NODE VERSION"
-          echo "=========================================="
-
           node --version
           npm --version
 
-          echo ""
-
-
-          # ----------------------------------------------------
-          # Create package.json if repository doesn't have one
-          # ----------------------------------------------------
           if [ ! -f package.json ]; then
-
-            echo "package.json not found."
-            echo "Creating package.json..."
-
             npm init -y
-
           fi
-
-
-          # ----------------------------------------------------
-          # Capacitor
-          # ----------------------------------------------------
-          echo ""
-          echo "Installing Capacitor..."
 
           npm install \
             @capacitor/core@8 \
             @capacitor/cli@8 \
             @capacitor/android@8 \
-            @capacitor/splash-screen@8
-
-
-          # ----------------------------------------------------
-          # AdMob NextGen
-          # ----------------------------------------------------
-          echo ""
-          echo "Installing AdMob NextGen..."
-
-          npm install \
+            @capacitor/splash-screen@8 \
             capacitor-admob-nextgen@1.2.9 \
             cordova-plugin-admob-nextgen \
-            cordova-plugin-admob-nextgen-native
-
-
-          # ----------------------------------------------------
-          # Build tool
-          # ----------------------------------------------------
-          echo ""
-          echo "Installing esbuild..."
-
-          npm install esbuild
-
-
-          echo ""
-          echo "=========================================="
-          echo "DEPENDENCIES INSTALLED"
-          echo "=========================================="
-
-
-          npm list \
-            @capacitor/core \
-            @capacitor/cli \
-            @capacitor/android \
-            capacitor-admob-nextgen \
-            cordova-plugin-admob-nextgen \
             cordova-plugin-admob-nextgen-native \
-            --depth=0
+            esbuild
 
-
-      # ========================================================
-      # 4. CONFIGURE ADMOB
-      #
-      # ONLY THE APP ID IS CONFIGURED HERE.
-      #
-      # Native Ad Unit ID:
-      #     NOT HERE
-      #
-      # Banner Ad Unit ID:
-      #     NOT HERE
-      #
-      # Interstitial Ad Unit ID:
-      #     NOT HERE
-      #
-      # Rewarded Ad Unit ID:
-      #     NOT HERE
-      #
-      # They remain controlled by Firebase.
-      # ========================================================
-      - name: Configure AdMob App ID
+      - name: Configure AdMob
         shell: bash
         run: |
           set -e
-
           node <<'NODE'
           const fs = require("fs");
-
           const file = "package.json";
+          const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
 
-          const pkg = JSON.parse(
-            fs.readFileSync(file, "utf8")
-          );
-
-
-          // ----------------------------------------------------
-          // AdMob configuration
-          // ----------------------------------------------------
           pkg.admob = {
             androidAppId: process.env.ADMOB_APP_ID,
-
-            // Native Ads are enabled.
-            //
-            // This enables the native templates/dependencies.
-            // It does NOT contain an ad-unit ID.
             enableNativeAds: {
               android: true,
               ios: false
             }
           };
 
-
-          // ----------------------------------------------------
-          // Capacitor sync hook
-          //
-          // This is the ONLY place where the AdMob setup
-          // scripts are executed.
-          //
-          // DO NOT manually execute these scripts later.
-          // ----------------------------------------------------
           pkg.scripts = pkg.scripts || {};
-
           pkg.scripts["capacitor:sync:after"] =
             "node node_modules/capacitor-admob-nextgen/scripts/admob-manifest.js && node node_modules/capacitor-admob-nextgen/scripts/admob-native.js";
-
 
           fs.writeFileSync(
             file,
             JSON.stringify(pkg, null, 2) + "\n"
           );
-
-
-          console.log("");
-          console.log("==========================================");
-          console.log("ADMOB CONFIGURATION");
-          console.log("==========================================");
-
-          console.log("");
-          console.log("AdMob App ID:");
-          console.log(process.env.ADMOB_APP_ID);
-
-          console.log("");
-          console.log("Native Ads:");
-          console.log("Android = ENABLED");
-
-          console.log("");
-          console.log("Ad Unit IDs:");
-          console.log("Loaded from Firebase at runtime.");
-
-          console.log("");
-          console.log("No Native Ad Unit ID is stored in GitHub Actions.");
           NODE
 
+          echo "AdMob TEST APP ID configured."
+          echo "Ad unit IDs will come from Firebase."
 
-          echo ""
-          echo "AdMob TEST APP ID:"
-          echo "${ADMOB_APP_ID}"
-
-
-      # ========================================================
-      # 5. PREPARE WWW
-      #
-      # Copies your existing PWA into Capacitor's www folder.
-      # ========================================================
       - name: Prepare Web Files
         shell: bash
         run: |
           set -e
-
-          echo "=========================================="
-          echo "PREPARING WWW"
-          echo "=========================================="
-
-
           rm -rf www
-
           mkdir -p www
 
-
-          rsync -av \
+          rsync -a \
             --exclude=".git" \
             --exclude=".github" \
             --exclude="www" \
@@ -277,42 +91,9 @@ jobs:
             --exclude="package-lock.json" \
             ./ www/
 
+          test -f www/index.html
 
-          echo ""
-          echo "Files copied into www:"
-
-          find www -maxdepth 2 -type f | sort
-
-
-          echo ""
-
-          if [ ! -f www/index.html ]; then
-
-            echo "ERROR: www/index.html was not found."
-
-            exit 1
-
-          fi
-
-
-          echo "SUCCESS: www/index.html found."
-
-
-      # ========================================================
-      # 6. CREATE NATIVE JAVASCRIPT BRIDGE
-      #
-      # This exposes:
-      #
-      # window.Capacitor
-      # window.AdMobPlugin
-      #
-      # The native extension separately exposes:
-      #
-      # window.admobNextGenNative
-      #
-      # Do NOT overwrite that object.
-      # ========================================================
-      - name: Create Native JavaScript Bridge
+      - name: Create Native Bridge
         shell: bash
         run: |
           set -e
@@ -322,38 +103,16 @@ jobs:
           import { AdMobNextGen } from 'capacitor-admob-nextgen';
 
           window.Capacitor = Capacitor;
-
-          // Core Capacitor AdMob NextGen API
           window.AdMobPlugin = AdMobNextGen;
           EOF
 
-
-          npx esbuild \
-            bridge.js \
+          npx esbuild bridge.js \
             --bundle \
             --minify \
             --outfile=www/native-bridge.js
 
+          test -f www/native-bridge.js
 
-          if [ ! -f www/native-bridge.js ]; then
-
-            echo "ERROR: native-bridge.js was not created."
-
-            exit 1
-
-          fi
-
-
-          echo "Native JavaScript bridge created."
-
-
-      # ========================================================
-      # 7. CREATE CAPACITOR CONFIG
-      #
-      # Only the App ID is placed here.
-      #
-      # No ad-unit IDs.
-      # ========================================================
       - name: Create Capacitor Config
         shell: bash
         run: |
@@ -365,7 +124,6 @@ jobs:
             "appName": "${APP_NAME}",
             "webDir": "www",
             "bundledWebRuntime": false,
-
             "plugins": {
               "SplashScreen": {
                 "launchShowDuration": 3000,
@@ -381,346 +139,86 @@ jobs:
           }
           EOF
 
-
-          echo ""
-          echo "=========================================="
-          echo "CAPACITOR CONFIG"
-          echo "=========================================="
-
-          cat capacitor.config.json
-
-
-      # ========================================================
-      # 8. JAVA 21
-      # ========================================================
-      - name: Setup JDK 21
-        uses: actions/setup-java@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
         with:
           java-version: "21"
           distribution: "temurin"
-          cache: "gradle"
+          cache: gradle
 
-
-      # ========================================================
-      # 9. CREATE ANDROID PROJECT
-      # ========================================================
-      - name: Add Android Platform
+      - name: Add Android
         shell: bash
         run: |
           set -e
-
-          echo "=========================================="
-          echo "CREATING ANDROID PROJECT"
-          echo "=========================================="
-
           npx cap add android
 
-
-      # ========================================================
-      # 10. VERIFY ADMOB PLUGINS
-      #
-      # Do this BEFORE sync.
-      # ========================================================
       - name: Verify AdMob Plugins
         shell: bash
         run: |
           set -e
 
-          echo "=========================================="
-          echo "VERIFYING ADMOB PLUGINS"
-          echo "=========================================="
-
-
-          echo ""
-          echo "1. Capacitor AdMob NextGen"
-
           test -d node_modules/capacitor-admob-nextgen
-
-          echo "OK"
-
-
-          echo ""
-          echo "2. Core AdMob NextGen"
-
           test -d node_modules/cordova-plugin-admob-nextgen
-
-          echo "OK"
-
-
-          echo ""
-          echo "3. Native Ad Extension"
-
           test -d node_modules/cordova-plugin-admob-nextgen-native
 
-          echo "OK"
-
-
-          echo ""
-          echo "4. Native showWith()"
-
-          if grep -R "showWith" \
+          grep -R "showWith" \
             node_modules/cordova-plugin-admob-nextgen-native \
-            >/dev/null 2>&1
-          then
+            >/dev/null
 
-            echo "showWith() FOUND"
+          echo "All AdMob NextGen plugins verified."
 
-          else
-
-            echo "ERROR: showWith() was not found."
-
-            exit 1
-
-          fi
-
-
-          echo ""
-          echo "=========================================="
-          echo "INSTALLED ADMOB PACKAGES"
-          echo "=========================================="
-
-          npm list \
-            capacitor-admob-nextgen \
-            cordova-plugin-admob-nextgen \
-            cordova-plugin-admob-nextgen-native \
-            --depth=0
-
-
-      # ========================================================
-      # 11. CAPACITOR SYNC
-      #
-      # IMPORTANT:
-      #
-      # This automatically executes:
-      #
-      # admob-manifest.js
-      # admob-native.js
-      #
-      # because of the capacitor:sync:after hook.
-      #
-      # DO NOT manually execute them.
-      # ========================================================
-      - name: Sync Capacitor Android
+      - name: Configure Android
         shell: bash
         run: |
           set -e
-
-          echo "=========================================="
-          echo "CAPACITOR SYNC"
-          echo "=========================================="
-
-
-          npx cap sync android
-
-
-          echo ""
-          echo "Capacitor Android sync completed."
-
-
-      # ========================================================
-      # 12. VERIFY ADMOB APP ID
-      # ========================================================
-      - name: Verify AdMob Manifest
-        shell: bash
-        run: |
-          set -e
-
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-
-
-          echo "=========================================="
-          echo "VERIFYING ADMOB APP ID"
-          echo "=========================================="
-
-
-          if [ ! -f "$MANIFEST" ]; then
-
-            echo "ERROR: AndroidManifest.xml not found."
-
-            exit 1
-
-          fi
-
-
-          if grep -q \
-            "com.google.android.gms.ads.APPLICATION_ID" \
-            "$MANIFEST"
-          then
-
-            echo "SUCCESS:"
-            echo "AdMob APPLICATION_ID found."
-
-          else
-
-            echo "ERROR:"
-            echo "AdMob APPLICATION_ID was NOT injected."
-
-            echo ""
-            echo "AndroidManifest.xml:"
-            cat "$MANIFEST"
-
-            exit 1
-
-          fi
-
-
-      # ========================================================
-      # 13. VERIFY NATIVE AD RESOURCES
-      # ========================================================
-      - name: Verify Native Ad Resources
-        shell: bash
-        run: |
-          set -e
-
-          echo "=========================================="
-          echo "VERIFYING NATIVE AD RESOURCES"
-          echo "=========================================="
-
-
-          echo ""
-          echo "Searching Android project..."
-
-
-          find android \
-            -type f \
-            \
-              -iname "*native*" \
-              -o \
-              -iname "*ad*" \
-            \
-            2>/dev/null \
-            | head -100 || true
-
-
-          echo ""
-          echo "Native resource check completed."
-
-
-      # ========================================================
-      # 14. ANDROID SDK CONFIGURATION
-      #
-      # Capacitor 8 / Android API 36
-      # ========================================================
-      - name: Configure Android SDK
-        shell: bash
-        run: |
-          set -e
-
-          echo "=========================================="
-          echo "ANDROID SDK CONFIGURATION"
-          echo "=========================================="
-
 
           if [ -f android/variables.gradle ]; then
-
-            sed -i \
-              's/targetSdkVersion = .*/targetSdkVersion = 36/' \
+            sed -i -E \
+              's/compileSdkVersion = [0-9]+/compileSdkVersion = 36/' \
               android/variables.gradle || true
 
-
-            sed -i \
-              's/compileSdkVersion = .*/compileSdkVersion = 36/' \
+            sed -i -E \
+              's/targetSdkVersion = [0-9]+/targetSdkVersion = 36/' \
               android/variables.gradle || true
 
-
-            sed -i \
-              's/minSdkVersion = .*/minSdkVersion = 24/' \
+            sed -i -E \
+              's/minSdkVersion = [0-9]+/minSdkVersion = 24/' \
               android/variables.gradle || true
-
           fi
-
-
-          if [ -f android/app/build.gradle ]; then
-
-            sed -i \
-              's/targetSdkVersion .*/targetSdkVersion 36/' \
-              android/app/build.gradle || true
-
-
-            sed -i \
-              's/compileSdkVersion .*/compileSdkVersion 36/' \
-              android/app/build.gradle || true
-
-
-            sed -i \
-              's/minSdk .*/minSdk 24/' \
-              android/app/build.gradle || true
-
-
-            sed -i \
-              's/minSdkVersion .*/minSdkVersion 24/' \
-              android/app/build.gradle || true
-
-          fi
-
-
-          echo ""
-          echo "Android SDK configuration completed."
-
-
-      # ========================================================
-      # 15. VERSION
-      # ========================================================
-      - name: Set Dynamic Version
-        shell: bash
-        run: |
-          set -e
 
           VERSION_CODE="${{ github.run_number }}"
           VERSION_NAME="1.0.${{ github.run_number }}"
 
+          sed -i -E \
+            "s/versionCode [0-9]+/versionCode ${VERSION_CODE}/" \
+            android/app/build.gradle || true
 
-          echo "Version Code: ${VERSION_CODE}"
-          echo "Version Name: ${VERSION_NAME}"
+          sed -i -E \
+            "s/versionName \"[^\"]+\"/versionName \"${VERSION_NAME}\"/" \
+            android/app/build.gradle || true
 
-
-          if [ -f android/app/build.gradle ]; then
-
-            sed -i \
-              "s/versionCode 1/versionCode ${VERSION_CODE}/" \
-              android/app/build.gradle || true
-
-
-            sed -i \
-              "s/versionName \"1.0\"/versionName \"${VERSION_NAME}\"/" \
-              android/app/build.gradle || true
-
-          fi
-
-
-      # ========================================================
-      # 16. MAIN ACTIVITY
-      # ========================================================
       - name: Configure MainActivity
         shell: bash
         run: |
           set -e
 
-          PACKAGE_PATH=$(echo "${PACKAGE_NAME}" | tr '.' '/')
+          PACKAGE_PATH=$(echo "$PACKAGE_NAME" | tr '.' '/')
+          MAIN="android/app/src/main/java/${PACKAGE_PATH}/MainActivity.java"
 
+          mkdir -p "$(dirname "$MAIN")"
 
-          mkdir -p \
-            "android/app/src/main/java/${PACKAGE_PATH}"
-
-
-          cat > \
-            "android/app/src/main/java/${PACKAGE_PATH}/MainActivity.java" \
-            <<EOF
+          cat > "$MAIN" <<EOF
           package ${PACKAGE_NAME};
 
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
-
               @Override
               public void onBackPressed() {
-
-                  if (
-                      this.bridge != null &&
-                      this.bridge.getWebView() != null &&
-                      this.bridge.getWebView().canGoBack()
-                  ) {
-                      this.bridge.getWebView().goBack();
+                  if (bridge != null &&
+                      bridge.getWebView() != null &&
+                      bridge.getWebView().canGoBack()) {
+                      bridge.getWebView().goBack();
                   } else {
                       super.onBackPressed();
                   }
@@ -728,85 +226,96 @@ jobs:
           }
           EOF
 
-
-          echo "MainActivity created."
-
-
-      # ========================================================
-      # 17. APP ICON
-      # ========================================================
       - name: Setup App Icon
         shell: bash
         run: |
           set -e
 
-
           if [ -f s.png ]; then
-
-            echo "=========================================="
-            echo "INSTALLING APP ICON"
-            echo "=========================================="
-
-
-            rm -rf \
-              android/app/src/main/res/mipmap-anydpi-v26
-
-
             find android/app/src/main/res \
               -name "ic_launcher*.xml" \
               -type f \
               -delete
 
-
             for dir in android/app/src/main/res/mipmap-*/; do
-
-              cp -f \
-                s.png \
-                "${dir}ic_launcher.png" \
-                2>/dev/null || true
-
-
-              cp -f \
-                s.png \
-                "${dir}ic_launcher_round.png" \
-                2>/dev/null || true
-
+              cp -f s.png "${dir}ic_launcher.png" 2>/dev/null || true
+              cp -f s.png "${dir}ic_launcher_round.png" 2>/dev/null || true
             done
-
-
-            echo "App icon installed."
-
-          else
-
-            echo "s.png not found."
-            echo "Using default Capacitor icon."
-
           fi
 
+      - name: Capacitor Sync
+        shell: bash
+        run: |
+          set -e
+          npx cap sync android
 
-      # ========================================================
-      # 18. FINAL CAPACITOR SYNC
-      #
-      # This is necessary after Android project modifications.
-      #
-      # The AdMob hook runs automatically here too.
-      # ========================================================
-      - name: Final Capacitor Sync
+      - name: Verify AdMob Manifest
         shell: bash
         run: |
           set -e
 
-          echo "=========================================="
-          echo "FINAL CAPACITOR SYNC"
-          echo "=========================================="
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
 
+          test -f "$MANIFEST"
 
-          npx cap sync android
+          grep -q \
+            "com.google.android.gms.ads.APPLICATION_ID" \
+            "$MANIFEST"
 
+          echo "AdMob APPLICATION_ID found."
 
-          echo ""
-          echo "Final Capacitor sync completed."
+      - name: Build Debug APK
+        shell: bash
+        run: |
+          set -e
 
+          cd android
+          ./gradlew assembleDebug --no-daemon
 
-      # ========================================================
-      # 
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -e
+
+          echo "Searching for APK..."
+          find android/app/build/outputs \
+            -type f \
+            -name "*.apk" \
+            -print
+
+          APK=$(find android/app/build/outputs \
+            -type f \
+            -name "*.apk" | head -n 1)
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK was not created."
+            exit 1
+          fi
+
+          echo "APK found:"
+          ls -lh "$APK"
+
+      - name: Prepare APK Artifact
+        shell: bash
+        run: |
+          set -e
+
+          mkdir -p release
+
+          APK=$(find android/app/build/outputs \
+            -type f \
+            -name "*.apk" | head -n 1)
+
+          test -n "$APK"
+
+          cp "$APK" release/Fira-Tech-debug.apk
+
+          ls -lh release/Fira-Tech-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fira-Tech-APK
+          path: release/Fira-Tech-debug.apk
+          if-no-files-found: error
+          retention-days: 30
