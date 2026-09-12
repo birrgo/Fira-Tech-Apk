@@ -22,7 +22,7 @@
         .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
 
         .ad-container-wrapper {
-            position: fixed; top: 80px; left: 0; width: 100%;
+            position: fixed; bottom: 60px; left: 0; width: 100%;
             display: flex; justify-content: center; pointer-events: none; z-index: 9000;
         }
         .admob-preview-banner {
@@ -204,7 +204,7 @@
                 <h3 style="margin: 0 0 8px; color: #1e293b;">AdMob Interstitial Ad Preview</h3>
                 <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;" id="mockInterstitialIdText">ID: Loading...</p>
                 <p style="font-size: 13px; color: #475569;">In the generated APK, a full-screen Google AdMob ad will take over the screen here.</p>
-                <button id="mockInterstitialContinueBtn" style="width: 100%; margin-top: 15px; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: bold;">Continue</button>
+                <button id="mockInterstitialContinueBtn" style="width: 100%; margin-top: 15px; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Continue</button>
             </div>
         </div>
 
@@ -660,8 +660,8 @@
                 container.appendChild(card);
                 currentPostCount++;
 
-                // Insert ad after every 2 posts
-                if (currentPostCount % 2 === 0) {
+                // Insert ad after every 3 posts instead of 2
+                if (currentPostCount % 3 === 0) {
                     if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId) {
                         const adDivId = `native-feed-ad-${currentPostCount}`;
                         const nativeAdContainer = document.createElement('div');
