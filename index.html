@@ -32,20 +32,22 @@
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.25); text-align: center; pointer-events: auto;
         }
         
-        /* Modern Native Ad Styling - Matches Video Reference */
+        /* Professional Native Ad Styling - No Gaps, Clean Integration */
         .native-ad-placeholder {
             display: block;
             width: 100%;
-            min-height: 120px; /* Allows flexible expansion, removes white gaps */
+            min-height: 0;
+            max-height: none;
             margin: 12px 0;
             padding: 0;
-            background: #ffffff;
-            border-radius: 12px;
+            background: transparent;
+            border-radius: 0;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             box-sizing: border-box;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Matches post card shadow */
+            box-shadow: none;
             z-index: 1; 
+            border: none;
         }
 
         .mock-test-ad-block {
@@ -54,6 +56,10 @@
             padding: 16px;
             box-sizing: border-box;
             width: 100%;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(226, 232, 240, 0.8);
         }
         .mock-test-ad-header {
             display: flex;
@@ -148,7 +154,7 @@
 
         <header class="nav-header" style="display: flex; align-items: center; justify-content: space-between;">
             <div class="header-left-group" style="display: flex; align-items: center;">
-                <button type="button" class="menu-action-btn" id="openMenuIframeBtn" style="background: none; border: none; cursor: pointer; color: inherit; padding: 0; display: flex; align-items: center; justify-content: center;">
+                <button type="button" class="menu-action-btn" id="openMenuIframeBtn" style="background: none; border: none; cursor: pointer; color: inherit; padding: 0; display: flex; align-items: center;">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -198,7 +204,7 @@
                 <h3 style="margin: 0 0 8px; color: #1e293b;">AdMob Interstitial Ad Preview</h3>
                 <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;" id="mockInterstitialIdText">ID: Loading...</p>
                 <p style="font-size: 13px; color: #475569;">In the generated APK, a full-screen Google AdMob ad will take over the screen here.</p>
-                <button id="mockInterstitialContinueBtn" style="width: 100%; margin-top: 15px; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Continue to Article</button>
+                <button id="mockInterstitialContinueBtn" style="width: 100%; margin-top: 15px; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Continue</button>
             </div>
         </div>
 
@@ -654,21 +660,21 @@
                 container.appendChild(card);
                 currentPostCount++;
 
+                // Insert ad after every 2 posts
                 if (currentPostCount % 2 === 0) {
                     if (window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId) {
                         const adDivId = `native-feed-ad-${currentPostCount}`;
-                        const nativeAdCard = document.createElement('div');
-                        nativeAdCard.id = adDivId;
-                        nativeAdCard.className = 'native-ad-placeholder'; 
+                        const nativeAdContainer = document.createElement('div');
+                        nativeAdContainer.id = adDivId;
+                        nativeAdContainer.className = 'native-ad-placeholder'; 
                         
-                        container.appendChild(nativeAdCard);
+                        container.appendChild(nativeAdContainer);
                         
                         if (isNativeApp() && getAdMobPlugin() && window.nativeAdObserver) {
-                            window.nativeAdObserver.observe(nativeAdCard);
-                        }
-                        
-                        if (!isNativeApp() || !AdPlugin) {
-                            nativeAdCard.innerHTML = getNativeAdHTML("Sponsored Content");
+                            window.nativeAdObserver.observe(nativeAdContainer);
+                        } else {
+                            // Web/preview mode: show mock ad
+                            nativeAdContainer.innerHTML = getNativeAdHTML("Sponsored");
                         }
                     }
                 }
