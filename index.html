@@ -6,7 +6,6 @@
     <title>Fira Tech | App Updates, Tech Tips & Digital Skills</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* --- GLOBAL VARIABLES & BASE STYLES --- */
         :root {
             --primary-blue: #0F2C59;
             --primary-gradient: linear-gradient(135deg, #081B38 0%, #0F2C59 50%, #030C1A 100%);
@@ -48,37 +47,12 @@
         .bg-wave { position: absolute; left: 0; width: 100%; z-index: 0; pointer-events: none; }
         .bg-wave-top { top: 0; height: 11vh; min-height: 95px; }
 
-        /* --- FIXED TOP NATIVE AD (Now Full Width & At the Very Top) --- */
-        .fixed-top-ad {
-            display: flex; 
-            flex-direction: column; 
-            width: 100%;
-            margin: 0; 
-            padding: calc(6px + env(safe-area-inset-top)) 16px 6px 16px; 
-            background: rgba(255, 255, 255, 0.95); 
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border-radius: 0; 
-            border-bottom: 1px solid var(--border-light);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            flex-shrink: 0;
-            z-index: 105;
-        }
-        
-        .native-ad-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }
-        .native-ad-badge { background: #f59e0b; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .native-ad-placeholder { 
-            display: block; width: 100%; height: 75px; min-height: 75px; margin: 0; padding: 0; 
-            border-radius: 8px; position: relative; overflow: hidden; box-sizing: border-box; z-index: 1; pointer-events: none;
-        }
-
-        /* --- HEADER STYLES (Moved Under Native Ad, Adjusted Padding) --- */
+        /* --- HEADER STYLES --- */
         .nav-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
+            padding: calc(12px + env(safe-area-inset-top)) 16px 12px 16px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.12);
             background: rgba(8, 27, 56, 0.85);
             backdrop-filter: blur(20px);
@@ -156,6 +130,7 @@
         }
 
         .featured-broadcast-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--primary-gradient); }
+        .featured-broadcast-card.native-ad-card { padding: 8px; background: #ffffff; border-style: dashed; border-color: #cbd5e1; }
 
         .badge-meta-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
 
@@ -192,12 +167,12 @@
         .menu-iframe-drawer { position: absolute; top: 0; left: 0; width: 75%; height: 100%; border: none; background: #081B38; transform: translateX(-100%); transition: transform 0.3s ease-in-out; box-shadow: 4px 0 12px rgba(0,0,0,0.3); }
         .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
 
-        /* --- AD MOB STYLES (Bottom Banner Full Width) --- */
+        /* --- AD MOB STYLES --- */
         .ad-container-wrapper { 
             position: fixed; 
-            bottom: 0; 
+            bottom: 65px; 
             left: 0; 
-            width: 100vw; 
+            width: 100%; 
             height: calc(50px + env(safe-area-inset-bottom, 0px));
             background: #ffffff;
             display: flex; 
@@ -205,13 +180,21 @@
             align-items: flex-start;
             pointer-events: none; 
             z-index: 9000; 
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
         .admob-preview-banner { 
-            display: none; width: 100%; height: 50px; background: #f1c40f; color: #000; 
+            display: none; width: 320px; height: 50px; background: #f1c40f; color: #000; 
             flex-direction: column; align-items: center; justify-content: center; font-size: 13px; 
-            font-weight: bold; border: none; border-radius: 0; 
+            font-weight: bold; border: 2px dashed #d35400; border-radius: 4px; box-shadow: 0px 4px 10px rgba(0,0,0,0.25); 
             text-align: center; pointer-events: auto; 
+        }
+
+        .native-feed-ad-slot {
+            width: 100%;
+            height: 100px;
+            background: #f8fafc;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
         }
         
         /* --- SEARCH MODAL --- */
@@ -241,18 +224,24 @@
         .popup-body-desc { font-size: 13px; font-weight: 500; color: var(--text-muted); line-height: 1.4; margin-bottom: 20px; }
         .popup-dismiss-action { width: 100%; padding: 12px; background: var(--primary-gradient); color: #ffffff; border: none; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
 
-        /* --- BOTTOM NAVIGATION (Moved Above Ad) --- */
+        /* --- BOTTOM NAVIGATION (Fully Fixed Width Spanning) --- */
         .bottom-nav {
             position: fixed; 
-            bottom: calc(50px + env(safe-area-inset-bottom, 0px)); 
-            left: 0; right: 0;
-            height: 65px;
+            bottom: 0; 
+            left: 0; 
+            width: 100%;
+            height: calc(65px + env(safe-area-inset-bottom, 0px));
             background-color: #ffffff; 
-            display: flex; justify-content: space-around; align-items: flex-start;
-            padding-top: 6px; border-top: 1px solid var(--border-light);
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            padding-top: 6px; 
+            border-top: 1px solid var(--border-light);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); 
+            z-index: 1000;
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: var(--text-muted); font-size: 11px; font-weight: 600; width: 25%; height: 52px; transition: color 0.2s ease; cursor: pointer; border: none; background: none; outline: none; touch-action: manipulation; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: var(--text-muted); font-size: 11px; font-weight: 600; flex: 1; height: 52px; transition: color 0.2s ease; cursor: pointer; border: none; background: none; outline: none; touch-action: manipulation; }
         .nav-item svg { width: 22px; height: 22px; margin-bottom: 2px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .nav-item .icon-bg { display: flex; align-items: center; justify-content: center; padding: 4px 16px; border-radius: 16px; transition: background-color 0.2s ease; }
         .nav-item.active { color: #0F2C59; font-weight: 700; }
@@ -291,15 +280,6 @@
             </div>
         </div>
 
-        <!-- NEW ORDER: Fixed Top Native Ad is now ABOVE the top header -->
-        <div id="fixedNativeAdWrapper" class="fixed-top-ad" style="display: none;">
-            <div class="native-ad-header">
-                <span class="native-ad-badge">Advertisement</span>
-            </div>
-            <div id="native-feed-ad-top" class="native-ad-placeholder"></div>
-        </div>
-
-        <!-- HEADER NOW BELOW NATIVE AD -->
         <header class="nav-header">
             <div class="header-left-group">
                 <button type="button" class="menu-action-btn" id="openMenuIframeBtn" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; display:flex; align-items:center; justify-content:center;" aria-label="Open Menu">
@@ -320,12 +300,12 @@
             <footer class="verified-footer-shield"><span class="footer-shield-text">Fira Tech Matrix Verified</span></footer>
         </main>
 
-        <!-- Bottom Banner Ad (Full Width Fit at the Very Bottom) -->
+        <!-- Bottom Banner Ad Slot -->
         <div class="ad-container-wrapper" id="adContainerWrapper">
             <div class="admob-preview-banner" id="admobPreviewBanner">Home Banner Ad Preview Loading...</div>
         </div>
 
-        <!-- Navigation Menu (Above Bottom Ad) -->
+        <!-- Fully Spanned Bottom Navigation -->
         <nav class="bottom-nav">
             <a id="nav-home" href="index.html" class="nav-item active"><div class="icon-bg"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div><span>Home</span></a>
             <a id="nav-jobs" href="s.html" class="nav-item"><div class="icon-bg"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></div><span>Online Jobs</span></a>
@@ -422,22 +402,16 @@
                 const AdPlugin = getAdMobPlugin();
                 if (!isNativeApp() || !AdPlugin || !window.globalAdConfig?.nativeId) return;
                 
-                const visibleEntries = entries.filter(entry => entry.isIntersecting && entry.target && entry.target.id);
-                if (visibleEntries.length > 0) {
-                    const element = visibleEntries[0].target;
-                    requestedNativeAdId = element.id;
-                    showNativeAdForSlot(element);
-                    return;
-                }
-                
                 entries.forEach(entry => {
                     const element = entry.target;
                     if (!element || !element.id) return;
-                    if (!entry.isIntersecting && activeNativeAdId === element.id) {
+                    if (entry.isIntersecting) {
+                        requestedNativeAdId = element.id;
+                        showNativeAdForSlot(element);
+                    } else if (activeNativeAdId === element.id) {
                         requestedNativeAdId = null;
                         nativeAdOperation = nativeAdOperation.then(async () => {
-                            if (requestedNativeAdId) return;
-                            await hideCurrentNativeAd();
+                            if (!requestedNativeAdId) await hideCurrentNativeAd();
                         });
                     }
                 });
@@ -699,26 +673,32 @@
 
             container.innerHTML = "";
 
-            // Toggle visibility for the fixed Native Ad Box
             const nativeEnabled = window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId && isNativeApp() && getAdMobPlugin();
-            const fixedNativeWrapper = document.getElementById("fixedNativeAdWrapper");
-            
-            if (nativeEnabled && fixedNativeWrapper) {
-                fixedNativeWrapper.style.display = "flex";
-                if (window.nativeAdObserver) {
-                    const adPlaceholderNode = document.getElementById("native-feed-ad-top");
-                    window.nativeAdObserver.observe(adPlaceholderNode);
-                }
-            } else if (fixedNativeWrapper) {
-                fixedNativeWrapper.style.display = "none";
-            }
-
             const itemsToRender = filtered.slice(0, renderLimit);
-            itemsToRender.forEach(item => {
+            
+            itemsToRender.forEach((item, index) => {
                 const card = document.createElement("article");
                 card.className = "featured-broadcast-card";
                 card.innerHTML = buildSingleNewsCardHTML(item);
                 container.appendChild(card);
+
+                // Insert a native feed ad seamlessly into the list every 4 items
+                if (nativeEnabled && (index + 1) % 4 === 0) {
+                    const adCard = document.createElement("article");
+                    const adSlotId = `native_feed_ad_${index}`;
+                    adCard.className = "featured-broadcast-card native-ad-card";
+                    adCard.innerHTML = `
+                        <div class="native-ad-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <span class="native-ad-badge" style="background:#f59e0b; color:#fff; font-size:9px; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">Sponsored</span>
+                        </div>
+                        <div id="${adSlotId}" class="native-feed-ad-slot"></div>
+                    `;
+                    container.appendChild(adCard);
+                    const slotNode = document.getElementById(adSlotId);
+                    if (slotNode && window.nativeAdObserver) {
+                        window.nativeAdObserver.observe(slotNode);
+                    }
+                }
             });
         }
 
