@@ -7,21 +7,47 @@
     <link rel="stylesheet" href="news.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* Specific overrides for single page article view */
+        /* Professional Article Page Ad Placement */
         body { padding-bottom: 70px; background: #081B38; }
         .full-article-container { padding: 20px; background: #ffffff; min-height: 100vh; border-top-left-radius: 20px; border-top-right-radius: 20px; margin-top: 10px; }
-        .news-reader-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; color: white; }
+        .news-reader-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; color: white; background: var(--primary-gradient); border-top-left-radius: 20px; border-top-right-radius: 20px; }
         .back-btn { background: none; border: none; color: white; cursor: pointer; padding: 5px; display:flex; align-items:center; }
         
+        /* IMPROVED: Banner Ad Container - Fixed Positioning */
         .ad-container-wrapper {
-            position: fixed; bottom: 0px; left: 0; width: 100%;
-            display: flex; justify-content: center; pointer-events: none; z-index: 9000;
+            position: fixed;
+            bottom: 65px;
+            left: 0;
+            right: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 900;
+            padding: 6px 8px 0;
+            box-sizing: border-box;
+            background: transparent;
         }
+        
+        /* Professional Banner Ad Styling */
         .admob-preview-banner {
-            width: 320px; height: 50px; background: #f1c40f; color: #000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: bold; border: 2px dashed #d35400; border-radius: 4px;
-            box-shadow: 0px -4px 10px rgba(0, 0, 0, 0.1); text-align: center; pointer-events: auto;
+            width: 320px;
+            max-width: calc(100% - 16px);
+            height: 50px;
+            background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+            color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            border: 1px solid rgba(240, 180, 0, 0.4);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            pointer-events: auto;
         }
         
         /* IMPROVED: Native Ad Placeholder - Flexible Height */
@@ -30,27 +56,46 @@
             width: 100%;
             min-height: 120px;
             max-height: 200px;
-            margin: 20px 0;
+            margin: 16px 0;
             padding: 0;
             background: #ffffff;
             border-radius: 12px;
             position: relative;
             overflow: hidden;
             box-sizing: border-box;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             z-index: 10;
+            border: 1px solid rgba(226, 232, 240, 0.8);
             clear: both;
         }
         
         .mock-test-ad-block {
-            background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px;
-            padding: 15px; text-align: center; margin-top: 15px; display: flex;
-            flex-direction: column; align-items: center; justify-content: center;
-            position: relative; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); width: 100%;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            width: 100%;
+            min-height: 120px;
         }
         .mock-test-ad-label {
-            background: #4285f4; color: white; font-size: 10px; padding: 4px 8px;
-            position: absolute; top: 0; left: 0; border-bottom-right-radius: 8px; font-weight: bold; text-transform: uppercase;
+            background: #4285f4;
+            color: white;
+            font-size: 10px;
+            padding: 4px 8px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            border-bottom-right-radius: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
         }
         .mock-test-ad-title { font-size: 16px; color: #333; margin: 15px 0 5px 0; font-weight: 700; }
         .mock-test-ad-desc { font-size: 12px; color: #777; margin: 0; word-break: break-all; }
@@ -132,7 +177,6 @@
         function setupBackButton() {
             document.getElementById('goBackBtn').addEventListener('click', async () => {
                 const AdPlugin = getAdMobPlugin();
-                // Clean up ads on exit to prevent overlap
                 if (isNativeApp() && AdPlugin) {
                     if (AdPlugin.hideBanner) await AdPlugin.hideBanner().catch(e => console.log(e));
                     if (AdPlugin.hideNativeAd) await AdPlugin.hideNativeAd().catch(e => console.log(e));
@@ -165,7 +209,7 @@
                         placements: adData.placements || {}
                     };
                     
-                    fetchTargetArticle(); // Fetch article once config is loaded
+                    fetchTargetArticle();
 
                     if (!window.globalAdConfig.status) return;
                     
@@ -187,7 +231,6 @@
 
         async function triggerBannerAdArticlePage() {
             const adWrapper = document.getElementById('adContainerWrapper');
-            // Referencing 'Banner Ad on Post Details' from 45724.jpg
             if (!window.globalAdConfig?.placements?.bannerAdPostDetails || !window.globalAdConfig?.bannerId) {
                 if (isNativeApp()) {
                     const AdPlugin = getAdMobPlugin();
@@ -260,9 +303,9 @@
             if (embedUrl) videoHTML = `<div class="reader-video-container" style="margin-top:15px;"><iframe src="${embedUrl}" allowfullscreen style="width:100%; height:200px; border-radius:12px; border:none;"></iframe></div>`;
 
             let redirectBtnHTML = targetRedirectUrl 
-                ? `<div style="margin-top:20px;"><a href="${targetRedirectUrl}" target="_blank" class="redirect-link-btn" style="width:100%; display:block; text-align:center; padding:12px; background:#2563eb; color:white; border-radius:8px; font-weight:bold; text-decoration:none;"><span>${customActionLabel}</span></a></div>` : "";
+                ? `<div style="margin-top:20px;"><a href="${targetRedirectUrl}" target="_blank" class="redirect-link-btn" style="width:100%; display:block; text-align:center; padding:12px; background:var(--primary-gradient); color:#fff; text-decoration:none; border-radius:10px; font-weight:700;">Visit Source</a></div>`
+                : "";
 
-            // NATIVE AD: Improved placement with better spacing and visibility control
             const articleNativeAdId = 'article-native-ad';
             let articleNativeAdHtml = `<div id="${articleNativeAdId}" class="native-ad-placeholder" style="width:100%; min-height:120px; margin: 20px 0; background: transparent;"></div>`;
 
@@ -280,10 +323,8 @@
                 ${redirectBtnHTML}
             `;
 
-            // Referencing 'Native Ad on Post Details' from 45724.jpg
             if (window.globalAdConfig?.placements?.nativeAdPostDetails && window.globalAdConfig?.nativeId) {
                 if (isNativeApp() && AdPlugin) {
-                    // Setup Intersection Observer for better native ad visibility tracking
                     setupNativeAdObserver();
                     setTimeout(() => updateAllNativeAdsPositions(), 350);
                 } else {
@@ -309,7 +350,6 @@
                 });
             }, options);
 
-            // Observe all native ad placeholders
             document.querySelectorAll('.native-ad-placeholder').forEach(el => {
                 nativeAdObserver.observe(el);
             });
@@ -322,7 +362,6 @@
             const rect = element.getBoundingClientRect();
             const bannerHeight = window.globalAdConfig?.placements?.bannerAdPostDetails ? 60 : 0;
             
-            // IMPROVED: Better visibility detection with viewport margins
             if (rect.bottom > -50 && rect.top < (window.innerHeight + 50 - bannerHeight)) {
                 AdPlugin.showNativeAd({ 
                     adId: element.id, 
