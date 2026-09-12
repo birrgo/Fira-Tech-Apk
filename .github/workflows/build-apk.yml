@@ -28,13 +28,6 @@ jobs:
           if [ ! -f package.json ]; then npm init -y; fi
           npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/splash-screen@8 capacitor-admob-nextgen@1.2.9 esbuild
 
-      - name: Fix Native Ad Overlay Height Bug
-        run: |
-          if [ -d "node_modules/capacitor-admob-nextgen/android/src/main/res/layout" ]; then
-            find node_modules/capacitor-admob-nextgen/android/src/main/res/layout -type f -name "*.xml" -exec sed -i 's/android:layout_height="match_parent"/android:layout_height="wrap_content"/g' {} +
-            find node_modules/capacitor-admob-nextgen/android/src/main/res/layout -type f -name "*.xml" -exec sed -i 's/android:layout_height="fill_parent"/android:layout_height="wrap_content"/g' {} +
-          fi
-
       - name: Configure NextGen Ads
         run: |
           node -e "
