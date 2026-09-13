@@ -173,7 +173,7 @@
         .menu-iframe-drawer { position: absolute; top: 0; left: 0; width: 75%; height: 100%; border: none; background: #081B38; transform: translateX(-100%); transition: transform 0.3s ease-in-out; box-shadow: 4px 0 12px rgba(0,0,0,0.3); }
         .menu-iframe-overlay.active .menu-iframe-drawer { transform: translateX(0); }
 
-        /* --- AD MOB STYLES --- */
+        /* --- AD MOB HTML POSITIONS --- */
         .ad-container-wrapper { 
             position: fixed; 
             bottom: 65px; 
@@ -309,7 +309,7 @@
             <footer class="verified-footer-shield"><span class="footer-shield-text">Fira Tech Matrix Verified</span></footer>
         </main>
 
-        <!-- Bottom Banner Ad Slot -->
+        <!-- HTML strictly defines Banner placement -->
         <div class="ad-container-wrapper" id="adContainerWrapper">
             <div class="admob-preview-banner" id="admobPreviewBanner">Home Banner Ad Preview Loading...</div>
         </div>
@@ -367,6 +367,7 @@
             activeNativeAdId = null;
         }
 
+        // ALL AD PLACEMENT BEHAVIOR EXTRACTED DIRECTLY FROM HTML ELEMENT
         async function showNativeAdForSlot(element) {
             const AdPlugin = getAdMobPlugin();
             if (!element || !element.id || !isNativeApp() || !AdPlugin || !window.globalAdConfig?.nativeId) return;
@@ -385,11 +386,15 @@
                 }
 
                 if (requestedNativeAdId !== elementId) return;
+
+                // Adjust exact position and layout directly dictated by HTML dataset values
+                const computedTemplate = element.dataset.adTemplate || "small";
+                
                 try {
                     await AdPlugin.showNativeAd({ 
                         adId: elementId, 
                         adUnitId: window.globalAdConfig.nativeId, 
-                        template: "small", 
+                        template: computedTemplate, 
                         x: Math.round(rect.left), 
                         y: Math.round(rect.top), 
                         width: Math.round(rect.width), 
@@ -661,13 +666,11 @@
             if (!contentArea) return;
             
             contentArea.addEventListener("scroll", () => {
-                // Hide native ad instantly during scroll to prevent drifting/glitches
-                if (activeNativeAdId) {
-                    hideCurrentNativeAd();
-                }
+                // Ad positioning fully reactive strictly based on JS Scroll Event
+                if (activeNativeAdId) hideCurrentNativeAd();
+                
                 if (scrollHideTimeout) clearTimeout(scrollHideTimeout);
                 scrollHideTimeout = setTimeout(() => {
-                    // Re-check visible elements after scroll settles
                     const activeCard = document.querySelector('.native-ad-card');
                     if (activeCard) {
                         const slot = activeCard.querySelector('.native-feed-ad-slot');
@@ -697,7 +700,6 @@
             }
 
             container.innerHTML = "";
-
             const nativeEnabled = window.globalAdConfig?.placements?.nativeAdPostList && window.globalAdConfig?.nativeId && isNativeApp() && getAdMobPlugin();
             const itemsToRender = filtered.slice(0, renderLimit);
             
@@ -711,17 +713,17 @@
                     const adCard = document.createElement("article");
                     const adSlotId = `native_feed_ad_${index}`;
                     adCard.className = "featured-broadcast-card native-ad-card";
+                    
+                    // The Native Ad styling & template parameters are defined entirely here via data attributes
                     adCard.innerHTML = `
                         <div class="native-ad-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <span class="native-ad-badge" style="background:#f59e0b; color:#fff; font-size:9px; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">Sponsored</span>
                         </div>
-                        <div id="${adSlotId}" class="native-feed-ad-slot"></div>
+                        <div id="${adSlotId}" class="native-feed-ad-slot" data-ad-template="small"></div>
                     `;
                     container.appendChild(adCard);
                     const slotNode = document.getElementById(adSlotId);
-                    if (slotNode && window.nativeAdObserver) {
-                        window.nativeAdObserver.observe(slotNode);
-                    }
+                    if (slotNode && window.nativeAdObserver) window.nativeAdObserver.observe(slotNode);
                 }
             });
         }
