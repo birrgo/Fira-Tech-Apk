@@ -26,7 +26,6 @@ jobs:
       - name: Install Dependencies & Esbuild
         run: |
           if [ ! -f package.json ]; then npm init -y; fi
-          # Added @capacitor/network@8 for offline handling
           npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/splash-screen@8 @capacitor/network@8 capacitor-admob-nextgen@1.2.9 esbuild
 
       - name: Initialize AdMob SDK Variables
@@ -47,7 +46,7 @@ jobs:
           mkdir -p www
           rsync -av --exclude='.git' --exclude='.github' --exclude='www' --exclude='node_modules' ./ www/
           
-          # Using EOF to safely inject multiline JavaScript for the Network bridge
+          # Injecting Centered Offline Popup logic with Try Again button
           cat << 'EOF' > bridge.js
           import { Capacitor } from '@capacitor/core';
           import { AdMobNextGen } from 'capacitor-admob-nextgen';
@@ -57,23 +56,76 @@ jobs:
           window.AdMobPlugin = AdMobNextGen;
           window.Network = Network;
 
-          // Offline & Low Connection Handler
           const handleNetwork = (status) => {
-            let banner = document.getElementById('offline-banner');
+            let popup = document.getElementById('offline-popup');
+            
             if (!status.connected) {
-              if (!banner) {
-                banner = document.createElement('div');
-                banner.id = 'offline-banner';
-                banner.style.cssText = 'position:fixed;bottom:0;width:100%;background:#d93025;color:white;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;z-index:9999;font-weight:bold;box-shadow:0 -2px 5px rgba(0,0,0,0.2);';
-                banner.innerText = 'You are offline. Please check your connection.';
-                document.body.appendChild(banner);
+              if (!popup) {
+                // Create fullscreen dark overlay
+                popup = document.createElement('div');
+                popup.id = 'offline-popup';
+                popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999999;backdrop-filter:blur(3px);';
+                
+                // Create centered white box
+                const box = document.createElement('div');
+                box.style.cssText = 'background:white;padding:25px;border-radius:12px;text-align:center;width:80%;max-width:320px;font-family:sans-serif;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
+                
+                // Warning Icon
+                const icon = document.createElement('div');
+                icon.innerHTML = '⚠️';
+                icon.style.cssText = 'font-size:40px;margin-bottom:15px;';
+                
+                // Title text
+                const title = document.createElement('h3');
+                title.innerText = 'No Internet Connection';
+                title.style.cssText = 'margin:0 0 10px 0;color:#222;font-size:18px;';
+                
+                // Subtitle text
+                const text = document.createElement('p');
+                text.innerText = 'Please check your network settings and try again.';
+                text.style.cssText = 'margin:0 0 20px 0;color:#666;font-size:14px;line-height:1.4;';
+                
+                // Try Again Button
+                const btn = document.createElement('button');
+                btn.innerText = 'Try Again';
+                btn.style.cssText = 'background:#001a66;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:15px;cursor:pointer;font-weight:bold;width:100%;text-transform:uppercase;';
+                
+                // Button Click Logic
+                btn.onclick = async () => {
+                  btn.innerText = 'Checking...';
+                  btn.style.opacity = '0.7';
+                  
+                  const currentStatus = await Network.getStatus();
+                  
+                  if (currentStatus.connected) {
+                    popup.remove();
+                    window.location.reload(); // Reload the app to fetch fresh data
+                  } else {
+                    setTimeout(() => {
+                      btn.innerText = 'Try Again';
+                      btn.style.opacity = '1';
+                    }, 500); // Small delay so the user sees the button was pressed
+                  }
+                };
+                
+                // Assemble the popup
+                box.appendChild(icon);
+                box.appendChild(title);
+                box.appendChild(text);
+                box.appendChild(btn);
+                popup.appendChild(box);
+                document.body.appendChild(popup);
               }
-            } else if (banner) {
-              banner.remove();
+            } else if (popup) {
+              // If connected and popup exists, remove it
+              popup.remove();
             }
           };
 
+          // Listen for network changes automatically
           Network.addListener('networkStatusChange', handleNetwork);
+          
+          // Check status immediately on app load
           Network.getStatus().then(handleNetwork);
           EOF
           
@@ -154,7 +206,6 @@ jobs:
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   
-                  // Modern SDK 33+ Back Button Handling
                   getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
                       @Override
                       public void handleOnBackPressed() {
