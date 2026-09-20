@@ -26,10 +26,10 @@ jobs:
       - name: Install Dependencies & Esbuild
         run: |
           if [ ! -f package.json ]; then npm init -y; fi
-          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/splash-screen@8 capacitor-admob-nextgen@1.2.9 esbuild
+          # Added @capacitor/network@8 for offline handling
+          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/splash-screen@8 @capacitor/network@8 capacitor-admob-nextgen@1.2.9 esbuild
 
       - name: Initialize AdMob SDK Variables
-        # This ONLY registers the App ID. Layout/Placement is strictly handled by HTML.
         run: |
           node -e "
           const fs = require('fs');
@@ -47,10 +47,35 @@ jobs:
           mkdir -p www
           rsync -av --exclude='.git' --exclude='.github' --exclude='www' --exclude='node_modules' ./ www/
           
-          echo "import { Capacitor } from '@capacitor/core';" > bridge.js
-          echo "import { AdMobNextGen } from 'capacitor-admob-nextgen';" >> bridge.js
-          echo "window.Capacitor = Capacitor;" >> bridge.js
-          echo "window.AdMobPlugin = AdMobNextGen;" >> bridge.js
+          # Using EOF to safely inject multiline JavaScript for the Network bridge
+          cat << 'EOF' > bridge.js
+          import { Capacitor } from '@capacitor/core';
+          import { AdMobNextGen } from 'capacitor-admob-nextgen';
+          import { Network } from '@capacitor/network';
+          
+          window.Capacitor = Capacitor;
+          window.AdMobPlugin = AdMobNextGen;
+          window.Network = Network;
+
+          // Offline & Low Connection Handler
+          const handleNetwork = (status) => {
+            let banner = document.getElementById('offline-banner');
+            if (!status.connected) {
+              if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'offline-banner';
+                banner.style.cssText = 'position:fixed;bottom:0;width:100%;background:#d93025;color:white;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;z-index:9999;font-weight:bold;box-shadow:0 -2px 5px rgba(0,0,0,0.2);';
+                banner.innerText = 'You are offline. Please check your connection.';
+                document.body.appendChild(banner);
+              }
+            } else if (banner) {
+              banner.remove();
+            }
+          };
+
+          Network.addListener('networkStatusChange', handleNetwork);
+          Network.getStatus().then(handleNetwork);
+          EOF
           
           npx esbuild bridge.js --bundle --minify --outfile=www/native-bridge.js
 
@@ -120,16 +145,27 @@ jobs:
           cat << EOF > android/app/src/main/java/$PACKAGE_PATH/MainActivity.java
           package ${{ env.PACKAGE_NAME }};
 
+          import android.os.Bundle;
+          import androidx.activity.OnBackPressedCallback;
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
               @Override
-              public void onBackPressed() {
-                  if (this.bridge != null && this.bridge.getWebView() != null && this.bridge.getWebView().canGoBack()) {
-                      this.bridge.getWebView().goBack();
-                  } else {
-                      super.onBackPressed();
-                  }
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  
+                  // Modern SDK 33+ Back Button Handling
+                  getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+                      @Override
+                      public void handleOnBackPressed() {
+                          if (bridge != null && bridge.getWebView() != null && bridge.getWebView().canGoBack()) {
+                              bridge.getWebView().goBack();
+                          } else {
+                              setEnabled(false);
+                              getOnBackPressedDispatcher().onBackPressed();
+                          }
+                      }
+                  });
               }
           }
           EOF
